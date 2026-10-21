@@ -1,0 +1,30 @@
+{
+  "shotId": "speed-ramp-freeze",
+  "shotName": "Speed Ramp Freeze",
+  "purpose": "rhythm cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "rhythm",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: speed-ramp-freeze",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotSpeed_Ramp_Freeze",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-018"
+}

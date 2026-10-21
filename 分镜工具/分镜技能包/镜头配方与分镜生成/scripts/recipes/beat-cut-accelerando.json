@@ -1,0 +1,30 @@
+{
+  "shotId": "beat-cut-accelerando",
+  "shotName": "Beat Cut Accelerando",
+  "purpose": "transitions cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "transitions",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: beat-cut-accelerando",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotBeat_Cut_Accelerando",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-008"
+}

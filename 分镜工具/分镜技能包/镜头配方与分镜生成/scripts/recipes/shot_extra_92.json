@@ -1,0 +1,25 @@
+{
+  "shotId": "shot_extra_92",
+  "shotName": "Extra Shot 92",
+  "purpose": "Cinematic motion",
+  "energy": "low",
+  "tags": [
+    "general"
+  ],
+  "description": "Original video-shotcraft gallery recipe",
+  "durationRange": [
+    1.0,
+    3.5
+  ],
+  "materialAccept": [
+    "image"
+  ],
+  "materialReject": [],
+  "remotionComponent": "ShotExtra92",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Official gallery motion",
+  "pitfalls": "",
+  "previewRef": "preview-092"
+}

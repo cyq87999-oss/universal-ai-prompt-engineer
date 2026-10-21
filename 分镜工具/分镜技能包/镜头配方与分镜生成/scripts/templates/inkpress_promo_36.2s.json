@@ -1,0 +1,20 @@
+{
+  "templateId": "inkpress_promo_36.2s",
+  "name": "Ink Press 36.2s product promo template",
+  "totalDuration": 36.2,
+  "fps": 30,
+  "resolution": {
+    "w": 1920,
+    "h": 1080
+  },
+  "shotSequence": [
+    {
+      "shotId": "inkpress_title_open",
+      "duration": 2.4
+    },
+    {
+      "shotId": "2.5d-page-push",
+      "duration": 2.6
+    }
+  ]
+}

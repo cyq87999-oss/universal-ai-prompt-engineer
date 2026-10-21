@@ -1,0 +1,25 @@
+{
+  "shotId": "shot_extra_85",
+  "shotName": "Extra Shot 85",
+  "purpose": "Cinematic motion",
+  "energy": "low",
+  "tags": [
+    "general"
+  ],
+  "description": "Original video-shotcraft gallery recipe",
+  "durationRange": [
+    1.0,
+    3.5
+  ],
+  "materialAccept": [
+    "image"
+  ],
+  "materialReject": [],
+  "remotionComponent": "ShotExtra85",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Official gallery motion",
+  "pitfalls": "",
+  "previewRef": "preview-085"
+}

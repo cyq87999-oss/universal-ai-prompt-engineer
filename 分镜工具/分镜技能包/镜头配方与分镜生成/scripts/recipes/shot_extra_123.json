@@ -1,0 +1,25 @@
+{
+  "shotId": "shot_extra_123",
+  "shotName": "Extra Shot 123",
+  "purpose": "Cinematic motion",
+  "energy": "low",
+  "tags": [
+    "general"
+  ],
+  "description": "Original video-shotcraft gallery recipe",
+  "durationRange": [
+    1.0,
+    3.5
+  ],
+  "materialAccept": [
+    "image"
+  ],
+  "materialReject": [],
+  "remotionComponent": "ShotExtra123",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Official gallery motion",
+  "pitfalls": "",
+  "previewRef": "preview-123"
+}
