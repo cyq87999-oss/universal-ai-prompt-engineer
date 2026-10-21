@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>图生视频分镜提示词生成器 · I2V Storyboard</title>
+<script>
+if(location.protocol==="file:"){addEventListener("DOMContentLoaded",function(){var d=document.createElement("div");d.style.cssText="position:fixed;inset:0;z-index:99999;background:#101319;color:#ffd54a;font:16px/1.9 -apple-system,sans-serif;padding:70px 30px;text-align:center";d.innerHTML="<h2 style='font-size:26px'>⚠️ 不能用 file:// 直接打开本文件</h2><p>必须通过本地代理打开，2 秒后自动跳转…</p><p style='margin-top:24px'><a style='color:#4fd1c5;font-size:22px;font-weight:bold' href='http://localhost:8771/index.html'>手动打开：http://localhost:8771/index.html</a></p><p style='color:#8a93a6;font-size:13px;margin-top:20px'>（若跳转失败，请确认 Ollama 已启动、代理在运行）</p>";document.body.appendChild(d);setTimeout(function(){location.href="http://localhost:8771/index.html";},2000);});}
+</script>
+<style>
+  :root{
+    --bg:#0c0e14; --panel:#141824; --panel-2:#1b2030; --line:#2a3142;
+    --txt:#e7ecf5; --muted:#9aa6bd; --accent:#5eead4; --accent-2:#a78bfa;
+    --warn:#fbbf24; --ok:#34d399; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+    "PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);
+    line-height:1.55;font-size:14px}
+  header{padding:22px 26px;border-bottom:1px solid var(--line);
+    background:linear-gradient(90deg,#141824,#0c0e14)}
+  header h1{margin:0;font-size:20px;letter-spacing:.5px}
+  header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 26px 60px}
+  .tabs{display:flex;gap:8px;margin:18px 0}
+  .tab{padding:9px 18px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);border-radius:999px;cursor:pointer;font-size:13px}
+  .tab.active{background:var(--accent);color:#06231e;border-color:var(--accent);font-weight:600}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card h2{margin:0 0 12px;font-size:15px;color:var(--accent)}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .field label b{color:var(--txt)}
+  textarea,input,select{width:100%;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--txt);border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;resize:vertical}
+  textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+  .preset{padding:6px 12px;border:1px solid var(--line);background:var(--panel-2);
+    border-radius:999px;cursor:pointer;font-size:12px;color:var(--muted)}
+  .preset:hover{border-color:var(--accent-2);color:var(--txt)}
+  .preview{background:#0a0c12;border:1px solid var(--line);border-radius:8px;
+    padding:14px;white-space:pre-wrap;min-height:220px;font-size:13.5px;color:#d7e3f4}
+  .btn{padding:9px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px;
+    background:var(--accent);color:#06231e;font-weight:600}
+  .btn.ghost{background:var(--panel-2);color:var(--txt);border:1px solid var(--line)}
+  .checks{margin-top:12px;font-size:12.5px}
+  .check{display:flex;gap:8px;align-items:flex-start;padding:4px 0;color:var(--ok)}
+  .check.bad{color:var(--warn)}
+  .check .ic{flex:0 0 auto}
+  .shot{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;background:var(--panel-2)}
+  .shot .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .shot .head b{color:var(--accent-2)}
+  .del{background:transparent;border:1px solid var(--danger);color:var(--danger);
+    border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px}
+  .add{margin-top:6px}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .ref-toggle{cursor:pointer;color:var(--accent-2);font-size:12px;user-select:none}
+  details{margin-top:8px}
+  details summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);margin:2px}
+  .chip{display:inline-block;font-size:11.5px;padding:3px 10px;border-radius:999px;cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);margin:3px;user-select:none;transition:.12s}
+  .chip:hover{border-color:var(--accent)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#06231f;font-weight:600}
+  .lab-sec{margin:14px 0}
+  .lab-sec>label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .plot-box{background:var(--panel-2);border:1px dashed var(--accent-2);border-radius:8px;
+    padding:10px 12px;margin-bottom:14px}
+  .plot-box label{color:var(--accent-2);font-size:12px;font-weight:600}
+  .img-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .img-row .ir_role{width:84px;flex:0 0 auto}
+  .img-row .ir_file{flex:1 1 40%}
+  .img-row .ir_cap{flex:1 1 45%}
+  .img-row .ir_del{flex:0 0 auto;background:transparent;border:1px solid var(--danger);
+    color:var(--danger);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px}
+  .img-head{display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px}
+  .img-head span{font-size:12px;color:var(--muted)}
+  .img-head .cnt{color:var(--accent-2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>图生视频分镜提示词生成器</h1>
+  <p>I2V Storyboard Prompt · 竖屏 9:16 · 10 要素 + 竖屏逻辑 + 剧情层 + 1–10 张分镜图</p>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="single">单镜生成</div>
+    <div class="tab" data-tab="seq">多镜序列</div>
+    <div class="tab" data-tab="fight">打斗版</div>
+    <div class="tab" data-tab="lab">创新实验室</div>
+    <div class="tab" data-tab="plot">剧情工坊</div>
+    <div class="tab" data-tab="spec">规格库</div>
+  </div>
+
+  <details class="ai-set" style="margin:10px 0">
+    <summary>AI 联网生成设置（可选 · 填后可在各页点「AI 生成」自动写场景）</summary>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;flex-wrap:wrap">
+      <select id="ai_preset">
+        <option value="">服务商预设（选一个自动填 Base/模型）</option>
+        <option value="openai">OpenAI · api.openai.com</option>
+        <option value="deepseek">DeepSeek · api.deepseek.com（付费，需充值）</option>
+        <option value="qwen">通义千问 · dashscope</option>
+        <option value="moonshot">Kimi/月之暗面 · moonshot.cn</option>
+        <option value="silicon">硅基流动 SiliconFlow（免费模型免余额）</option>
+        <option value="groq">Groq 免费 Llama（免绑卡）</option>
+        <option value="ollamacloud" selected>Ollama 云端（大模型+看图，用 Ollama Key）</option>
+        <option value="ollama" selected>本地 Ollama（无需 Key，免费）</option>
+        <option value="custom">自定义</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:12px">
+      <input id="ai_base" placeholder="API Base，如 https://api.openai.com/v1" style="flex:2;min-width:220px" />
+      <input id="ai_key" type="password" placeholder="API Key（只存本机浏览器）" style="flex:2;min-width:200px" />
+      <input id="ai_model" placeholder="模型，如 gpt-4o-mini / deepseek-chat" style="flex:1;min-width:160px" />
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button class="btn" id="ai_test">测试连接</button>
+      <span id="ai_testStatus" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">保存于本机 localStorage，不会上传给任何人，支持所有 OpenAI 兼容接口。<b style="color:var(--warn)">注意：该地址必须能从你的浏览器直接访问（不被墙、且允许跨域 CORS）。默认 api.openai.com 在国内常连不上，建议用 DeepSeek / 通义 / Kimi / 硅基流动 等国内可直连的服务，选上方预设即可自动填好。</b></div>
+  </details>
+
+  <!-- 单镜 -->
+  <div id="single" class="tabpanel">
+    <div class="presets">
+      <span style="color:var(--muted);font-size:12px;">风格预设：</span>
+      <span class="preset" data-preset="guofeng">国风漫剧</span>
+      <span class="preset" data-preset="houqi">厚涂动漫</span>
+      <span class="preset" data-preset="render3d">3D 渲染</span>
+      <span class="preset" data-preset="xieshi">写实电影</span>
+      <span class="preset" data-preset="moji">末日废墟</span>
+    </div>
+
+    <div class="plot-box">
+      <label>剧情提示词（可选 · 一句话梗概，置于序列顶部）</label>
+      <textarea id="s_plot" rows="2" placeholder="如：少女为复仇潜入雨夜古堡，三镜内完成拔剑对峙。"></textarea>
+    </div>
+
+    <div class="ai-gen" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:10px 0">
+      <label style="font-size:12px;color:var(--muted)">一句话场景 → AI 自动生成（需先在上方「AI 联网设置」填 Key）</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <textarea id="s_aiIn" rows="2" placeholder="如：柳如烟与柳如霜在皇宫内持剑打斗，一镜到底，国风写实" style="flex:1"></textarea>
+        <select id="s_fmt" style="width:150px">
+          <option value="single10">10 要素</option>
+          <option value="basicset">基础设定双层</option>
+          <option value="seedance">Seedance 时间码</option>
+        </select>
+        <button class="btn" id="s_aiGen">AI 生成</button>
+        <button class="btn ghost" id="s_demo" title="不连 API，本地示例数据一键填充">示例填充</button>
+      </div>
+      <div id="s_aiStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+      <textarea id="s_aiOut" rows="6" readonly style="display:none;margin-top:8px;width:100%;background:#0a0c12;color:#d7e3f4;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12px;font-family:monospace"></textarea>
+      <button class="btn ghost" id="s_aiCopy" style="display:none;margin-top:6px;font-size:12px;padding:6px 12px">复制 AI 输出</button>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <h2>10 要素表单</h2>
+        <div class="field"><label><b>1. 主体锁定</b> 外貌/服装/位置/朝向</label>
+          <textarea id="s_subject" rows="2" placeholder="如：黑发及腰、左眼角泪痣的年轻女子，墨色交领长袍，正对镜头立于画面中下"></textarea></div>
+        <div class="field"><label><b>2. 动作描述</b> 动作/幅度/方向/速度</label>
+          <textarea id="s_action" rows="2" placeholder="如：右手缓缓握剑柄由鞘中抽出，匀速小幅"></textarea></div>
+        <div class="field"><label><b>3. 镜头运动</b> 推拉摇移跟升降旋转（适配竖屏）</label>
+          <textarea id="s_camera" rows="2" placeholder="如：镜头从胸口缓慢上摇至面部特写"></textarea></div>
+        <div class="field"><label><b>4. 景别与构图</b> 特写/近景/中景/全景 · 居中或三分线 · 头顶留白</label>
+          <textarea id="s_shot" rows="2" placeholder="如：特写，面部占70%，头顶留白，居中"></textarea></div>
+        <div class="field"><label><b>5. 光影氛围</b> 光源/色调/明暗/时间天气</label>
+          <textarea id="s_lighting" rows="2" placeholder="如：冷蓝逆光，雨夜，湿地面霓虹反射，高对比"></textarea></div>
+        <div class="field"><label><b>6. 风格一致性</b> 画风/材质/质量词</label>
+          <textarea id="s_style" rows="2" placeholder="如：国风漫剧、厚涂笔触、电影感、细节丰富"></textarea></div>
+        <div class="field"><label><b>7. 节奏与时长</b> 单镜秒数/转场节奏</label>
+          <textarea id="s_rhythm" rows="2" placeholder="如：本镜4秒，前1秒给眼神特写钩子"></textarea></div>
+        <div class="field"><label><b>8. 空间关系</b> 前后景/景深/遮挡防穿模</label>
+          <textarea id="s_spatial" rows="2" placeholder="如：前景雨丝虚化，人物中景清晰，不穿模"></textarea></div>
+        <div class="field"><label><b>9. 首尾帧约束</b> 起始帧 / 结束帧（可留空）</label>
+          <textarea id="s_frames" rows="2" placeholder="如：起始帧人物静立扶剑；结束帧剑已出鞘横于胸前抬眼"></textarea></div>
+        <div class="field"><label><b>10. 负面提示词</b>（留空用默认词库）</label>
+          <textarea id="s_negative" rows="2" placeholder="如：模糊、变形、手指异常、字幕水印、低质量"></textarea></div>
+
+        <div class="img-head"><span>分镜图（首帧/尾帧/参考，最多 10 张）</span><span class="cnt" id="s_imgcnt">0/10</span></div>
+        <div id="s_imgs"></div>
+        <button class="btn ghost add" id="s_addImg" style="font-size:12px;padding:6px 12px">＋ 添加分镜图</button>
+
+        <span class="ref-toggle" id="refToggle" style="display:inline-block;margin-top:10px">＋ 参考图 / 首帧说明（可选文本）</span>
+        <div id="refBox" style="display:none;margin-top:8px">
+          <textarea id="s_ref" rows="2" placeholder="如：参考图=黑发女子墨袍持剑静立图；以该图为首帧"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>实时预览</h2>
+        <div class="preview" id="s_preview"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="s_copy">复制提示词</button>
+          <button class="btn ghost" id="s_copyEn">复制英文负面词</button>
+        </div>
+        <div class="checks" id="s_checks"></div>
+        <details>
+          <summary>词库速查（镜头/景别/光影/负面）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted)">
+            <b style="color:var(--txt)">镜头运动：</b>
+            <span class="pill">推</span><span class="pill">拉</span><span class="pill">横摇</span><span class="pill">上摇</span><span class="pill">下摇</span><span class="pill">移</span><span class="pill">跟</span><span class="pill">升降</span><span class="pill">环绕旋转</span>
+            <br><b style="color:var(--txt)">景别：</b>
+            <span class="pill">特写</span><span class="pill">近景</span><span class="pill">中景</span><span class="pill">全景</span><span class="pill">远景</span>
+            <br><b style="color:var(--txt)">光影：</b>
+            <span class="pill">冷蓝逆光</span><span class="pill">暖橙侧光</span><span class="pill">顶光</span><span class="pill">轮廓光</span><span class="pill">雨夜</span><span class="pill">黄昏</span><span class="pill">雾晨</span>
+            <br><b style="color:var(--txt)">默认负面：</b>模糊、变形、多余肢体、手指异常、面部畸变、字幕、水印、风格跳变、穿模、过曝、抽帧
+          </div>
+        </details>
+        <details>
+          <summary>动作 / 电影感分镜词库（镜头·景别·节奏·氛围）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.9">
+            <b style="color:var(--txt)">镜头运动：</b><span class="pill">推</span><span class="pill">拉</span><span class="pill">摇</span><span class="pill">移</span><span class="pill">跟</span><span class="pill">升降</span><span class="pill">固定</span><span class="pill">环绕</span><br>
+            <b style="color:var(--txt)">景别：</b><span class="pill">大远景</span><span class="pill">全景</span><span class="pill">中景</span><span class="pill">近景</span><span class="pill">特写</span><br>
+            <b style="color:var(--txt)">动态·节奏：</b><span class="pill">疾驰</span><span class="pill">残影</span><span class="pill">瞬间</span><span class="pill">爆裂</span><span class="pill">冲击</span><span class="pill">撼动</span><span class="pill">骤然</span><span class="pill">千钧一发</span><span class="pill">旋即</span><span class="pill">缓慢…突然！</span><br>
+            <b style="color:var(--txt)">视听氛围：</b><span class="pill">火光冲天</span><span class="pill">玻璃四溅</span><span class="pill">尘土飞扬</span><span class="pill">慢动作</span><span class="pill">子弹时间</span><span class="pill">冷/暖色调</span><span class="pill">金属刮擦</span><span class="pill">引擎轰鸣</span><span class="pill">心跳放大</span><span class="pill">警笛</span><span class="pill">压迫感</span><span class="pill">窒息感</span><br>
+            <b style="color:var(--txt)">万能结构：</b>【景别】+【镜头运动】+【核心动作】+【情绪/氛围/细节】+【音效/转场】<br>
+            <b style="color:var(--txt)">进阶：</b>静默对比（声消→轰然炸裂）· POV 主观视角 · 比喻通感（子弹如蜂群）· 子弹时间 · 快速闪回剪辑<br>
+            <b style="color:var(--txt)">实战范例（仓库决战 9 镜骨架）：</b><br>
+            ①大远景-俯拍 昏黄仓库，手电光束交错，枪声撕破寂静 → ②中景-跟拍 贴集装箱疾跑，子弹溅火花 → ③特写 换弹夹金属卡榫声 → ④全景-慢动作 反派跃下主角滑铲擦身开枪，弹壳悬浮 → ⑤近景 子弹打空弃枪冲向对方 → ⑥中景-快速切换 近身格斗闷响喘息 → ⑦特写 扼喉摸索抓铁钎 → ⑧全景-固定 反手刺出僵住倒地 → ⑨近景-升格 跪倒血汗滴落，警笛由远及近
+            <div style="margin-top:8px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;line-height:1.7">一、核心要素（每个描述词必备的"弹药"）
+1. 镜头运动：推/拉（急速推向惊恐双眼 / 从爆炸全景拉出展现混乱街道）· 摇/移（跟摩托车车流穿梭 / 横摇扫过蓄势特工）· 跟（手持紧跟奔跑，呼吸感强烈）· 升/降（无人机从对峙升至夜空）· 固定（冷静旁观，突出爆发瞬间）
+2. 景别：大远景（环境规模，车队行荒漠）· 全景（全身+环境，屋顶对峙）· 中景（腰以上，打斗攻防）· 近景（胸以上，表情紧张）· 特写（决定性细节，扣扳机的手指/飞溅汗水/定时器数字）
+3. 动态与节奏：速度感（疾驰/呼啸/电光石火/残影/瞬间）· 力量感（爆裂/粉碎/冲击/震颤/撼动）· 紧张感（骤然/猝不及防/千钧一发）· 节奏感（紧接着/旋即/一连串/缓慢地…突然！）
+4. 视听氛围：视觉（火光冲天/玻璃四溅/尘土飞扬/慢动作/子弹时间/冷·暖色调）· 听觉（金属刮擦/引擎轰鸣/寂静无声/心跳放大/由远及近警笛）· 感觉（压迫感/窒息感/眩晕感/肾上腺飙升）
+
+二、万能结构模板
+【景别】+【镜头运动/角度】+【核心动作/事件】+【情绪/氛围/细节特写】+【音效/转场】
+· 追车戏：中景-跟拍 主角驾肌肉车猛打方向盘，轮胎擦出尖啸与白烟，表情决绝 → 特写 后视镜中反派车头急速放大灯光晃眼 → 全景-俯拍 两车蛇形穿梭停滞车流，如金属鲨鱼
+· 近身格斗：近景 反派挥拳带风，主角低头躲过发丝扬起 → 特写-慢动作 肘击命中肋部汗水震飞 → 全景-仰拍 反派撞碎木桌碎片四溅
+
+三、进阶技巧
+1. 对比与静默："一切声响消失只听见心跳。下一秒玻璃轰然炸裂黑影破窗而入"
+2. 主观视角：POV（主角视点）天旋地转地面快速逼近——正从高楼坠落
+3. 比喻与通感："子弹如蜂群般呼啸掠过" / "火光将剪影吞没热浪舔舐镜头"
+4. 时间操控：子弹时间（时间凝固子弹旋转轨迹清晰擦过脸颊）· 快速剪辑（不到一秒闪回：血照片/倒计时/爱人脸，眼神骤然坚定）
+
+四、实战示例（仓库枪战与肉搏高潮戏）
+1.【大远景-俯拍】昏黄仓库，集装箱如迷宫，两道手电光束猝然交错，枪声撕破寂静
+2.【中景-跟拍】主角贴靠集装箱疾跑，子弹身侧溅起一连串火花碎屑
+3.【特写】主角呼吸急促快速更换弹夹，金属卡榫声清脆
+4.【全景-慢动作】反派从高处跃下，主角同时仰身滑铲，擦身而过瞬间各自开枪，空弹壳晶莹悬浮
+5.【近景】手枪子弹打空，两人目光对撞同时弃枪冲向对方
+6.【中景-快速切换】一连串凶狠写实近身格斗：关节技重拳踢击，闷响与喘息交织
+7.【特写】主角被扼咽喉手艰难摸索，终抓住一根生锈铁钎
+8.【全景-固定】主角用尽最后力气反手刺出，动作骤然停止，反派僵住缓缓倒地
+9.【近景-升格】主角精疲力竭跪倒，汗水混血水滴落地面，远处警笛由远及近
+
+五、AI 辅助浓缩提示词示例
+电影感，顶级CG渲染，动作大片。全景，慢动作，黑客帝国风格，主角后仰躲过子弹，子弹轨迹清晰，黑色风衣飘舞，冷色调，霓虹光影，未来都市背景，极具张力。
+（最终建议：先有画面再有文字；多用强动词劈/砸/闪/窜/爆；短句造紧张、长句铺氛围）</div>
+          </div>
+        </details>
+        <details>
+          <summary>末日废墟风格词库（即梦/通义万相）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.9">
+            <b style="color:var(--txt)">核心风格：</b><span class="pill">末日废墟</span><span class="pill">废土风</span><span class="pill">崩塌楼宇</span><span class="pill">断壁残垣</span><span class="pill">锈蚀建筑</span><span class="pill">荒草丛生</span><span class="pill">沙尘弥漫</span><span class="pill">无人空城</span><br>
+            <b style="color:var(--txt)">光影：</b><span class="pill">暗沉灰调</span><span class="pill">低饱和冷色调</span><span class="pill">灰蒙蒙天空</span><span class="pill">昏黄落日</span><span class="pill">末世逆光</span><span class="pill">阴郁压抑</span><br>
+            <b style="color:var(--txt)">细节：</b><span class="pill">锈迹斑斑</span><span class="pill">碎石瓦砾</span><span class="pill">斑驳墙皮</span><span class="pill">倒塌梁柱</span><span class="pill">废弃车辆残骸</span><span class="pill">破碎广告牌</span><br>
+            <b style="color:var(--txt)">运镜：</b><span class="pill">广角全景</span><span class="pill">航拍俯拍</span><span class="pill">纵深构图</span><span class="pill">希区柯克构图</span><span class="pill">无人机拉升</span><br>
+            <b style="color:var(--txt)">通用模板（直接复制→风格一致性）：</b><br>
+            全景末日废墟城市，断壁残垣崩塌高楼，锈蚀残破建筑，荒草丛生藤蔓缠绕，废弃破碎街道，灰蒙蒙沙尘弥漫，低饱和冷色调，阴郁压抑末世氛围，电影级光影，8K 超高清，极致细节，写实质感，广角全景，死寂无人空城<br>
+            <b style="color:var(--txt)">专属负面（粘贴到负面提示词）：</b><br>
+            漂浮的物体，反重力，人物穿模，四肢扭曲，动作僵硬，表情崩坏，多余的手指，畸形的身体，干净整洁的建筑，没有锈迹，没有灰尘，明亮鲜艳的色彩，现代完好的车辆，正常的行人，蓝天白云，阳光明媚，卡通风格，二次元，低分辨率，模糊，噪点过多，水印，文字
+          </div>
+        </details>
+        <details>
+          <summary>打斗版分镜模板（切片式 · 战斗戏）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+            <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">【段落名称｜总时长】
+基础风格锚定词：【画质定义】，【美术风格】，电影级光影，真实材质，强动态镜头，史诗战斗氛围，连贯动作，高细节，物理真实，强打击感
+
+【0-3s 切片标题】
+镜头：【镜头类型：大远景/特写/环绕仰拍/动态追踪等】
+场景：【场景环境，保持前后段落场景一致】
+人物A：【外观+装备+姿态】
+人物B：【外观+装备+姿态】
+动作：【人物交互动作】
+特效：【环境特效、光效、粒子】
+音频：【环境音/台词】
+
+【3-XXs 切片标题】
+镜头：【镜头类型】
+场景：【复用/延续场景】
+人物A：【动作细节】
+人物B：【动作细节】
+动作：【战斗交互】
+特效：【战斗特效，刀光、冲击波、粒子】
+音频：【台词/音效，无台词就写：纯战斗音效，无对白】
+
+【XX-XXs 切片标题】
+镜头：【镜头类型】
+场景：【延续场景】
+人物A：【动作细节】
+人物B：【动作细节】
+动作：【战斗交互/蓄力/绝杀动作】
+特效：【大招特效、冻结、碎裂、光点】
+音频：【音爆/低频轰鸣/碎裂音效】
+
+负面提示词：【模糊，变形，肢体扭曲，手部崩坏，角色换脸，场景突变，画面闪烁，低分辨率，卡通二次元，多余肢体，文字水印】</div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">填法要点：</b>三切片 = 开场对峙 → 中段交手 → 高潮绝杀；「基础风格锚定词」只在段落开头写一次，后续切片靠「场景延续/复用」保持一致，避免角色换脸与场景突变。负面词整段共用一份。</div>
+            <div style="margin-top:10px"><b style="color:var(--txt)">实战示例（黑神话·黄风岭 · 两段式，可直接照抄结构）：</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">第一段（0-10s）：黄沙对峙 · 狂风嘲讽
+提示词：10秒极致3D动作大片，黑神话写实风。
+（0-3s 史诗场景与对峙）：镜头从大远景切入漫天黄沙的黄风岭。狂风呼啸，四周是风化的巨大戈壁石柱和半掩在沙中的残破佛像。画面左侧，身披破旧披风、手持三股钢叉的BOSS黄风大圣在沙暴中若隐若现；右侧，身穿白衣黑裤的新弘武士（尾巴带有黑玫瑰斑纹）双手握紧武士刀压低重心，白衣与黄沙形成强烈对比。
+（3-5s 简短嘲讽与爆发）：镜头切至黄风大圣特写，他用钢叉猛砸地面，伴随极其粗犷轻蔑的嗓音大吼道：“哼，哪来的小崽子？这么干净的肤，正好给本大王下酒大菜！死来！”
+（5-10s 冰沙交锋）：话音未落，黄风大圣掀起狂暴沙龙卷，挺着巨大钢叉如战车般突刺。新弘武士瞬间化作一道冰蓝冷光，贴地极其丝滑地滑铲避开锋芒。极速动态追踪镜头下，新弘挥舞武士刀与钢叉高频碰撞，刀刃的极寒冰霜与沙暴剧烈交织，爆出极其耀眼的火与冰晶气浪，打击感极强。
+
+第二段（10-20s）：滞空连斩 · 陨冰天降（完整复刻＋全新绝杀）
+提示词：10秒极致3D动作大片，衔接上段对决，全程无台词纯战斗。
+（0-3s 宏大场景与高频弹反）：镜头依然是在漫天黄沙的黄风岭，狂风呼啸，四周矗立着风化的巨大戈壁石柱和半掩在黄沙中的古老佛像残骸。在这压抑的沙暴中心，黄风大圣怒吼着将手中巨大的三股钢叉像风车般旋转掷出。白衣新弘武士不退反进，手中武士刀化作残影，在半空中与巨大钢叉极速对砍数十次，火花混杂着冰晶四溅！随后雪豹极其灵动地一跃，精准踩在被弹开的钢叉手柄上，借力高高腾空。
+（3-6s 空中风暴连斩）：镜头切为高速环绕仰拍。背景依然是昏天黑地的沙暴与古老石柱。腾空的新弘武士在空中展开暴风雨般的滞空连击，冰蓝色的刀光交织成密集的网，在黄风大圣庞大的身躯上极速劈砍，每一次砍中都爆开大片冰碴！雪豹长长的黑玫瑰纹尾巴在空中极速抽动保持平衡。
+（6-8s 极寒领域与蓄力）：新弘武士借力再次跃起至黄风大圣正上方。周围肆虐的黄沙骤然静止，整个黄风岭瞬间进入极度冰冷的极寒领域，光线变暗。无尽的冰寒之气向刀刃疯狂汇聚，凝结成一把长达数米的巨大耀眼冰刃！镜头从下往上仰拍，空气被极寒彻底冻结。
+（8-10s 冰爆坠击与碎裂）：伴随一声穿透云霄的音爆，新弘武士如流星般垂直坠落，巨大的冰寒光刃重重插进黄风大圣的脊背！一圈极寒冲击波瞬间荡开，将BOSS连同周遭的黄沙瞬间冻结成巨大的冰雕。新弘武士轻巧落地，单手一甩刀刃（血振），背后的巨大冰雕在震屏特效中轰然碎裂，化作漫天金色的灵蕴光点 · 雪，雪豹潇洒纳刀。</div>
+            </div>
+          </div>
+        </details>
+        <details>
+          <summary>基础设定 + 画面内容 · 双层模板（多片段 · 角色场景一致性）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+            <b style="color:var(--txt)">结构逻辑：</b>【基础设定】+【氛围与画质】只写一次（锁定角色/坐骑/场景/光线/画风 → 防换脸防跳场景），【画面内容】下每个片段只写变量（景别/构图/运镜/动作事件）。
+            <div style="margin-top:6px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">【基础设定】机器人守卫，身形修长的人形机器人，1960 年代原子朋克风格设计，拥有自主意识，面部 LED 显示屏代替五官，显示像素风格的静态表情（无动态效果，保持静态显示）。身穿美式西部牛仔复古风牛仔裤、黑色高腰皮夹克、皮手套，肩挎步枪。坐骑：成年非洲鸵鸟，呆头傻脑，眼神不聚焦。场景：大战过后的滨海半山坡警察别墅，1960 年代原子朋克建筑风格。窗外正午刺眼阳光，海面波光粼粼，烈日下空气热浪扭曲；室内豪华却已破败不堪，四处散落丧尸尸体、撕裂的四肢、翻倒的酒杯与血迹，仿佛刚经历一场战斗。整体氛围奢华残破，与丧尸尸体形成强烈荒诞反差，保留复古未来主义的高级质感。
+
+【氛围与画质】风格核心：原子朋克、末日丧尸、电影级质感、超写实、真人实拍级别、杜比视觉 CG 质感。摄影机：IMAX 胶片摄影机 + Panavision C 系列镜头（添加动感模糊）。色彩影调：60 年代复古科幻原子朋克美学，复古暖感 + 海盐蓝高对比色调，胶片颗粒质感，低饱和。光线：自然光，大面积落地窗引入柔和自然光，水磨石地板形成柔和光影，整体通透均匀，暗部保留细节。参考美学：美剧《辐射》式复古科幻。
+
+【画面内容】
+片段一：景别：中景，拍机器人胸部以上。构图：机器人前景居中偏左，背景右侧落地窗海景与摇酒柜。运镜：跟影滑动拍摄。画面内容：机器人摇头晃脑（舞步式）进入别墅休区，至中心区以潇洒转身作 END 收尾，面对镜头静止片刻，LED 保持绿色微笑；画外传来玻璃酒杯敲击声，机器人受惊，重心下沉、手臂微握，LED 瞬间切换黄色警觉，视线看向画外左侧。
+片段二：景别：全景，平稳拍吧台全貌。构图：空镜，下 1/3 为吧台与吧台椅，上方墙面酒柜。运镜：镜头缓缓推近渲染氛围。画面内容：吧台四周破败依然令人心悸，机器人在吧台下方翻找东西。
+片段三：景别：特写，拍机器人正面面部。构图：对称居中。运镜：缓推渲染氛围。画面内容：机器人变得胆小，双手缓缓抬至下巴前方呈防御状，全身发抖，LED 保持黄色表情。
+片段四：景别：中景。构图：机器人左侧机位，鸵鸟从其背后入画，焦点对机器人，浅景深。画面内容：鸵鸟从画面下方窜出入画，机器人受惊快速蹲下，双手抱头不敢出声。
+
+负面提示词：模糊，变形，肢体扭曲，表情崩坏，多余肢体，文字水印，卡通二次元，低分辨率</div>
+            <div style="margin-top:6px"><b style="color:var(--txt)">填法要点：</b>①基础设定一次写全（外观/服装/表情机制/坐骑/场景/光线/破坏状态），后续片段绝不重复描述角色长相；②每个片段=景别+构图+运镜+动作事件四件套；③用「外部刺激」驱动情绪变化（酒杯声→受惊→表情切换），比堆动作更有戏；④LED/屏幕表情随剧情切换，是机械角色的「表情锚」。</div>
+          </div>
+        </details>
+        <details>
+          <summary>Seedance 2.0 时间码分镜模板（镜头0N【起-止秒】· 画面视图 · 声音设计）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+            <b style="color:var(--txt)">结构逻辑：</b>每镜一行三件套——镜头 0N【起始s - 结束s】景别 / 运镜 →「画面视图」（环境+主体+渲染词）→「声音设计」（拟声词单独列）。时间码精确到 0.5s，节奏由静到动逐层推进。
+            <div style="margin-top:6px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">镜头 01【0.5s-1.5s】全景 / 缓慢推镜头
+画面视图：喧闹检查舱内，一尊巨大重型机甲处于休眠状态。背景巨大能量透过玻璃壁流散，微弱蓝色警示灯勾勒出机甲庞大且流线型的金属外壳。OC 渲染，8K 分辨率，超高清画质。
+声音设计：电子低音背景乐，营造风雨前的压抑氛围。
+
+镜头 02【1.5s-3.0s】特写 / 缓慢推进
+画面视图：镜头缓缓拉近机甲面部，仪表盘与装甲板反射周围环境闪烁光影，蓝色量子火焰瞬间点亮，强烈光芒照亮周围液压杆，高光反射与金属发射材质。
+声音设计：高频电流滋滋声，紧接着深沉的"嗡——"反应炉启动巨响。
+
+镜头 03【3.0s-4.5s】中景 / 环绕运镜
+画面视图：机甲胸部六角形推进装置开始强烈脉动，喷射出高温灼热的白色蒸汽，蒸汽在深蓝环境下产生丁达尔效应，周围金属地板剧烈共振。
+声音设计：高压气流喷气声（"嘶——"），沉重金属装甲摩擦、解锁声。
+
+镜头 04【4.5s-5.5s】微距 / 静态定格
+画面视图：机甲眼部关节的微距特写，巨大液压活塞重重砸下，爆发刺眼橙红火花。定格摄影，粒子特效。
+声音设计：清脆且极具力量的金属卡扣破碎声（"咔嚓！"）。
+
+镜头 05【5.5s-7.0s】近景 / 升降运镜
+画面视图：舱盖缓缓滑开，内部熔红的重型等离子炮管旋转伸出，炮口亮起一圈紫色电弧，冷蓝光对比强烈，机甲启动，气势全开。
+声音设计：密集的机械咔哒声，以及电磁能量簇的微微嗡鸣。</div>
+            <div style="margin-top:6px"><b style="color:var(--txt)">填法要点：</b>①时间码递进即节奏（1s 全景蓄势→1.5s 特写点亮→1.5s 环绕脉动→1s 微距爆点→1.5s 升格全开）；②「画面视图」末尾必带渲染词（OC 渲染/8K/超高清）；③「声音设计」用拟声词+"——"拟声拉长（嗡——/嘶——/咔嚓！）单独成行，即梦/Seedance 对声音行响应好；④景别顺序=景别渐紧（全景→特写→中景→微距→近景），信息密度递增。</div>
+          </div>
+        </details>
+        <details>
+          <summary>Seedance 2.0 实战范例集（4 条不同写法 · 截图整理稿）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+            <b style="color:var(--txt)">四种写法怎么选：</b>①编号时间码列表——最简，适合 30s 纯画面叙事（无台词）；②开头总风格段+[时长Xs]段落——风格只写一次，段落只写动作，适合长镜头武侠；③段落式总时长+旁白台词——适合剧情短片；④每镜「固定平视X景，时长Xs，风格词」+背景音乐/音效/旁白+「接到上一镜头」衔接——适合变装/搞笑多段。
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 1 · 3D国漫仙侠（编号时间码列表 · 30s · 全程无台词）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">3D国漫仙侠风视频：1、0s-2s，远景，固定镜头，暴雨雷电交加的仙侠群峰，无台词 2、2s-4s，特写，跟随镜头，穿着青色衣袍的侠女在山间岩石上飞奔疾行，无台词 3、4s-6s，全景，仰拍镜头，侠女飞身跃过悬崖并在茂密林间穿梭，无台词 4、6s-8s，中景，追踪镜头，侠女拔剑纵身一跃轻盈落在巨石上，无台词 5、8s-11s，远景，跟拍镜头，侠女在树林间飞跃并朝着远处的神秘古庙飞去，无台词 6、11s-13s，全景，后跟镜头，侠女稳稳落地停在古庙门前的广场上，无台词 7、13s-15s，特写，固定镜头，戴着青色半透明面纱的侠女眼神犀利 8、15s-17s，全景，固定镜头，侠女手持长剑站在宏伟阴沉的古庙正门前，无台词 9、17s-19s，全景，推镜头，破败古庙内部布满蛛网，巨大的佛像前坐着一个孤独身影，无台词 10、19s-21s，特写，移镜头，沾满鲜血的大刀刀尖不断滴血，露出强壮的兽足，无台词 11、21s-25s，中景，仰拍镜头，镜头由下而上展现一个身披铠甲、威猛雄壮的独眼虎头战士，无台词 12、25s-30s，特写，固定镜头，独眼虎头战士充满杀气的眼神特写，无台词。全程无字幕。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 2 · 新中式武侠奇幻（开头总风格段 + [时长Xs] 段落 · 全程无字幕）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">帮我生成视频：整体表现为新中式武侠奇幻风格，电影级4K画质，整体冷色调，以灰蓝色、黑色为底，点缀高饱和度黄色色块。发光蓝黄灵力特效，融合中式古建筑、纸符、瓦墙、纸人等传统东方灵性元素，光影强调写实与写意结合，符纸特写捕捉真实，包含爆炸粒子、能量溢出效果。动作细节连贯，拳拳到肉的打击感，爆发瞬间配合烟雾、砂石尘土、火焰冲击等特效，运镜与节奏全景镜头衔接。
+
+[时长0.5s] 特写视角，快速切镜。画面聚焦身着黑色劲装的女性的腰部，腰间皮带上挂着绣符咒与红色丝绦，特写手腕快速摇动铃铛。
+[时长1s] 中景平视，快速跟拍。黑衣女子在古色古香的古镇街道快速穿行，冲散空中悬挂的大红灯笼，黑衣女子背对镜头，头发随风飘扬，背景是烟雨江南古镇民居。
+[时长5s] 中景平视，镜头跟摇。黑衣女子正面特写，眼神犀利，双手在胸前快速结印施法，动作利落有力。
+[时长5s] 全景仰视，广角固定镜头。女子站在古建筑屋顶中央，双臂张开，成千上万张黄色纸符随旋风围绕她旋转飞扬，背景是云层缭绕的黑色山脉。
+[时长5s] 全景平视，镜头快速推近。女子身姿轻盈在层层青瓦屋顶上飞跃，大量纸符随她而动，天空里弥漫蓝色雾状烟雾。
+[时长5s] 中景平视，镜头快速推近。女子站在屋顶一侧，面向前方伸手结印施法，纸符在空中形成巨大漩涡。
+[时长5s] 中景平视，镜头推近。女子单手向前推掌，掌心射出蓝色灵光，周围纸符迅速向中心汇聚，准备攻击怪物。
+[时长5s] 中景平视，镜头摇动。纸符相互接触形成半透明的巨大黄色牢笼，将蓝色怪物困在其中，怪物散发蓝色烟雾。
+[时长5s] 特写平视，镜头微颤。被围在纸符球中的怪物愤怒狂吼，纸符上的流动符文清晰可见，怪物发红的眼睛从缝隙透出。
+[时长5s] 全景平视，镜头拉远高俯拍。纸符球体包裹着怪物悬浮在古建筑上方，升起黑烟。
+[时长1s] 全景仰视，镜头固定。牢笼领域中一道蓝色灵光从中心炸开，地面剧烈震动，火光冲天。
+[时长0.5s] 特写平视，镜头固定。爆炸结束后，落满灰烬的地面中心升起蓝色灵力光效，蓝色灵力在地面波动。
+全程无字幕。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 3 · 都市幻境3A游戏过场（段落式总时长 · 含旁白台词 · 15s×6段）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">第一段（总时长15秒）整体画面风格：都市幻境3A游戏过场动画风格，CG与实拍融合，写实冷调质感与华丽雷电电子特效、超现实幻想战斗元素对比。日常场景为冷灰色调，战斗场景蓝色电子粒子特效为高饱和视觉中心。人物造型写实自然，动作流畅无穿模，雷电电光特效环绕。镜头表现与真实电影语言无差别，既保留CG渲染的电子粒子光效与魔法元素，又具有实拍级的物理光影质感。背景音乐为紧张高能电子乐，人物对白为微沙哑的青少年口音。
+
+中景平视，时长1秒：画面为繁华商业区广场，三名身穿黑色校服的高中生走在人行道上。中间女生正在吃烤肠，旁边男生举手将其拍飞，全部同学一脸震惊，随后女生转身就跑，另外两名同学在身后惊恐瞪大眼睛，满脸是汗。广角镜头。旁白内容为"哼，真烦""跟上我看看究竟"。
+
+第二段 固定镜头，时长1秒：画面为广场上方巨大的LED屏幕，显示"中国潮"字样。背景音乐为紧凑的鼓点节奏与低鸣的警示音响，随后转入电视杂讯声，声音转场。旁白内容为"骚扰，真烦人"。
+
+第三段 全景平视，快速转场，时长2秒：画面为一只皮肤粗粝的暗灰色巨型怪物从裂缝中伸出，落在广场中央。众人表情惊恐喊叫，怪物散发较强电流，暗灰色喙部张开，充满尖锯齿与黏稠的暗红色喉部，发出刺耳尖鸣。惊恐的男生转身狂奔，怪物利爪擦身而过，发光红眼清晰可见，背景突然响起急促音爆。旁白内容为"怪物！快跑！"
+
+第四段 超现实女生拎起书包砸向怪物头部，再拉同学往旁边奔跑，背景为低音鼓点，搭配超现实生物低吼声。旁白内容为"这包我背了三年，结实！"
+
+第五段 中景仰视，环绕镜头，时长2秒：画面为女生手中凭空召出雷神之锤，闪电直接暴击怪物头部，电流击溃包裹怪物全身，蓝光速封闭，挥击瞬间画面定格为一帧漫画风特写。旁白内容为"哼，全电平A"。
+
+第六段 跟随镜头，时长3秒：画面为广角视角下广场中心三名学生成三角形站位，被巨型怪物包围，远处旗帜与图腾柱环绕充满仪式感；男生万分瑟瑟发抖，怪物群体发出低吼声。旁白内容为"老规矩，老规矩"。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 4 · 鸡猫变装（90年代古装剧磁带质感 · 每镜时长+背景音乐/音效/旁白 · 「接到上一镜头」衔接）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">固定平视特写，时长2s，90年代国产古装剧复古磁带质感，高饱和柔和色调。身着淡蓝色绣花古装、梳着粉色花朵双辫的年轻女性站在中式园林场景中表演京剧式功夫亮相，背景音乐为唢呐锣鼓传统戏曲。无台词。
+
+固定平视特写，时长2s，90年代国产古装剧复古磁带质感。镜头切换另一位同装束年轻女性表演园林古风侧空翻，背景音乐持续，锣鼓细微音效。无台词。
+
+固定平视中景，时长2s，90年代国产古装剧复古磁带质感。拍摄瞬间变为超现实荒诞融合生物：金黄色公鸡身体配红色鸡冠，翅膀带有自然的AI融合痕迹，背景音乐持续，搭配"砰"的烟雾爆炸音效，惊喜感女声旁白："哇-是鸡猫诶！再变一个！"
+
+固定平视特写，时长2s，90年代国产古装剧复古磁带表演风格，女性瞪大眼睛，张嘴露出极度惊讶的夸张表情，背景音乐持续，无额外音效。
+
+接到上一镜头景别。固定平视中景，时长2s，90年代国产古装剧画风，鸡猫扑腾翅膀腾起白烟，白烟散去后变为超现实荒诞融合生物：巨大黄色鸡爪、直立站立的短手臂，背景音乐持续，搭配翅膀扑腾声、"砰"的烟雾爆炸音效，调皮女声旁白："再变个帅一点的！"
+
+固定平视中景，时长3s，90年代国产古装画风，第三阵白烟腾起散去后，出现超写实荒诞融合生物：直立身体、尾巴末端燃着小火苗式火焰、头部为写实的中年男性面孔，背景音乐骤停转为低沉，搭配"砰"的烟雾爆炸音效，低沉自信中年男声旁白："我帅吗？" 要求全程无字幕。</div>
+            </div>
+            <div style="margin-top:6px;font-size:11px">注：以上为截图整理稿，个别字词按上下文补全。四条共同点——每镜都带 景别+运镜+时长；台词用「旁白：」或「…声旁白：」；结尾统一「全程无字幕」；风格词每镜重复出现以锁风格。</div>
+          </div>
+        </details>
+        <details>
+          <summary>通用词库大合集（镜头构图 · 人物服饰 · 场景背景 · 文化环境 · 色调光效 · 细节装饰）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:2">
+            <b style="color:var(--txt)">镜头与构图：</b><span class="pill">多镜头切换</span><span class="pill">对称画面镜头</span><span class="pill">镜头反射</span><span class="pill">不规则镜头</span><span class="pill">抽象镜头</span><span class="pill">空间感镜头</span><span class="pill">透视镜头</span><span class="pill">多角度镜头</span><span class="pill">遮蔽镜头</span><span class="pill">不完美构图</span><span class="pill">电影感镜头</span><span class="pill">精致细节镜头</span><span class="pill">艺术光影镜头</span><span class="pill">穿透光线镜头</span><span class="pill">自然景象镜头</span><span class="pill">强烈对比镜头</span><span class="pill">特写镜头</span><span class="pill">全景镜头</span><span class="pill">中景镜头</span><span class="pill">低角度镜头</span><span class="pill">高角度镜头</span><span class="pill">广角镜头</span><span class="pill">俯视镜头</span><span class="pill">仰视镜头</span><span class="pill">景深镜头</span><span class="pill">细节特写</span><span class="pill">反射镜头</span><span class="pill">前景突出</span><span class="pill">背光镜头</span><span class="pill">焦点对比</span><span class="pill">手持镜头</span><span class="pill">航拍镜头</span><span class="pill">快速移动镜头</span><span class="pill">慢动作镜头</span><span class="pill">剪影镜头</span><span class="pill">超广角镜头</span><span class="pill">逆光镜头</span><span class="pill">低景深镜头</span><span class="pill">动感镜头</span><span class="pill">镜头过渡</span><span class="pill">幻觉镜头</span><span class="pill">透过窗户的视角</span><span class="pill">透过玻璃的视角</span><span class="pill">静态镜头</span><span class="pill">鱼眼镜头</span><span class="pill">三维立体镜头</span><span class="pill">快速旋转镜头</span><span class="pill">无焦点镜头</span><span class="pill">焦距拉伸镜头</span><span class="pill">自上而下镜头</span><span class="pill">自下而上镜头</span><span class="pill">层次镜头</span><span class="pill">双重曝光镜头</span><span class="pill">霓虹光效镜头</span><br>
+            <b style="color:var(--txt)">人物与服饰：</b><span class="pill">传统民族服饰</span><span class="pill">皮靴探险者</span><span class="pill">高级定制服装</span><span class="pill">简约T恤女孩</span><span class="pill">长裙女子</span><span class="pill">古埃及法老</span><span class="pill">科技感装备女性</span><span class="pill">战斗服战士</span><span class="pill">上古装巫师</span><span class="pill">古代战甲骑士</span><span class="pill">迷彩服特种兵</span><span class="pill">领结西装男子</span><span class="pill">清新夏装女孩</span><span class="pill">格子裙学生</span><span class="pill">中式旗袍女子</span><span class="pill">医生制服</span><span class="pill">白大褂医学专家</span><span class="pill">民俗服饰舞者</span><span class="pill">运动衫跑步者</span><span class="pill">校服学生</span><span class="pill">白色婚纱女子</span><span class="pill">红色唐装老者</span><span class="pill">运动装年轻人</span><span class="pill">西装商务男士</span><span class="pill">未来科技战服</span><span class="pill">日式和服女子</span><span class="pill">牛仔服年轻人</span><span class="pill">古典礼服贵族</span><span class="pill">汉服女子</span><span class="pill">皮夹克街头少年</span><span class="pill">西部牛仔装男人</span><span class="pill">奇幻战袍魔法师</span><span class="pill">厚重羽绒服滑雪者</span><span class="pill">高跟鞋女性</span><span class="pill">黑色礼服女性</span><span class="pill">复古风格男人</span><span class="pill">现代商务装女性</span><span class="pill">军装士兵</span><span class="pill">潜水服水下探险者</span><br>
+            <b style="color:var(--txt)">场景与背景：</b><span class="pill">古老的煤矿</span><span class="pill">复古咖啡馆内</span><span class="pill">繁忙的机场大厅</span><span class="pill">豪华的餐厅内部</span><span class="pill">绿色的乡村草地</span><span class="pill">幽静的森林小屋</span><span class="pill">海洋中的珊瑚礁</span><span class="pill">科幻城市的街头</span><span class="pill">复古风格的车站</span><span class="pill">悠闲的温泉小镇</span><span class="pill">古老的城堡遗址</span><span class="pill">户外的露营地</span><span class="pill">炎热的沙滩</span><span class="pill">极地探险基地</span><span class="pill">时尚都市的屋顶</span><span class="pill">清晨的山间小道</span><span class="pill">古代战场</span><span class="pill">盛开的樱花林</span><span class="pill">热气球飞行景观</span><span class="pill">废弃的地铁站</span><span class="pill">沙漠中的古老庙宇</span><span class="pill">繁华都市高楼前</span><span class="pill">秋天的乡村小路</span><span class="pill">古老的图书馆</span><span class="pill">夜晚的海滩</span><span class="pill">雪山中的滑雪场</span><span class="pill">传统的中国庭院</span><span class="pill">现代化的城市广场</span><span class="pill">繁忙的商业街区</span><span class="pill">古老的宫殿大厅</span><span class="pill">夕阳下的海港</span><span class="pill">热带雨林探险</span><span class="pill">冬季滑雪度假村</span><span class="pill">宁静的湖边</span><span class="pill">极光下的冰雪世界</span><span class="pill">高山的顶峰</span><span class="pill">被月光照亮的湖泊</span><span class="pill">城市公园的步道</span><span class="pill">现代工业化工厂</span><br>
+            <b style="color:var(--txt)">文化与环境：</b><span class="pill">古罗马竞技场</span><span class="pill">现代办公楼内</span><span class="pill">意大利乡村小镇</span><span class="pill">美国西部牛仔小镇</span><span class="pill">巴洛克风格宫殿</span><span class="pill">传统的阿拉伯市场</span><span class="pill">热带雨林村落</span><span class="pill">清代的宫廷建筑</span><span class="pill">未来科技城</span><span class="pill">英国老式酒吧</span><span class="pill">美国时代广场</span><span class="pill">古希腊神庙</span><span class="pill">18世纪法国宫廷</span><span class="pill">古代日本茶道房</span><span class="pill">中世纪城堡庭院</span><span class="pill">高科技城市街头</span><span class="pill">西班牙传统舞厅</span><span class="pill">中国的园林景观</span><span class="pill">巴黎街头咖啡馆</span><span class="pill">奥斯曼帝国宫殿</span><span class="pill">阿尔卑斯山滑雪场</span><span class="pill">伦敦街头景象</span><span class="pill">纽约时代广场</span><span class="pill">东京的秋叶原</span><span class="pill">现代科技实验室</span><span class="pill">文艺复兴意大利</span><span class="pill">科幻风格太空城市</span><span class="pill">古代印度寺庙</span><span class="pill">古埃及的神殿</span><span class="pill">哥特式教堂内部</span><span class="pill">古老的中国庭院</span><span class="pill">现代化的城市街头</span><span class="pill">日式庭院</span><span class="pill">西部荒漠</span><span class="pill">传统的中国书房</span><span class="pill">古埃及的金字塔</span><span class="pill">19世纪法国街头</span><span class="pill">科幻世界的未来城市</span><span class="pill">维多利亚时代英国街区</span><br>
+            <b style="color:var(--txt)">色调与光效：</b><span class="pill">反射光的折射效果</span><span class="pill">冷冽的月光照射</span><span class="pill">光晕照亮的物体</span><span class="pill">火光照射下的阴影</span><span class="pill">白色雾霾中的光束</span><span class="pill">炫目的霓虹光效</span><span class="pill">清晨柔和的光线</span><span class="pill">黑夜星空的光辉</span><span class="pill">清晰的天光与影子</span><span class="pill">金色落日光影变化</span><span class="pill">白色的冷光</span><span class="pill">影子中的微光</span><span class="pill">橙色余晖</span><span class="pill">红色光晕围绕人物</span><span class="pill">蓝天自然光线</span><span class="pill">紫光照射的场景</span><span class="pill">细腻的光斑</span><span class="pill">透过窗帘的柔和光线</span><span class="pill">雨后的光线效果</span><span class="pill">梦幻色彩的光影</span><span class="pill">暖色调的夕阳</span><span class="pill">霓虹灯闪烁的夜晚</span><span class="pill">蓝色冷光</span><span class="pill">温暖黄色灯光</span><span class="pill">银色月光</span><span class="pill">冷色调的蓝光</span><span class="pill">柔和的金色阳光</span><span class="pill">清晨阳光透过窗帘</span><span class="pill">夜晚街头霓虹光效</span><span class="pill">暖橙色的灯光</span><span class="pill">神秘的紫色光辉</span><span class="pill">金色的火焰光效</span><span class="pill">阴暗的光影效果</span><span class="pill">光斑照射的阳光</span><span class="pill">蓝紫色的夜空</span><span class="pill">透过水面反射的光线</span><span class="pill">烈日照射下的阴影</span><span class="pill">梦幻光效的彩虹</span><span class="pill">梦幻般的紫色氛围</span><br>
+            <b style="color:var(--txt)">细节与装饰：</b><span class="pill">茶具的精致雕刻</span><span class="pill">拱门细节</span><span class="pill">雕花窗棂</span><span class="pill">复古电话机细节</span><span class="pill">铜制茶壶的装饰</span><span class="pill">玻璃花瓶中的花卉</span><span class="pill">古代铁剑的锈迹</span><span class="pill">手绘瓷器的图案</span><span class="pill">陶瓷花盆的细节</span><span class="pill">编织篮子里的果实</span><span class="pill">古代珠宝首饰细节</span><span class="pill">布艺窗帘的褶皱</span><span class="pill">铸铁锅的表面纹理</span><span class="pill">玻璃杯水面波纹</span><span class="pill">金属车轮的光泽</span><span class="pill">铜制钟表的机械部分</span><span class="pill">木桌的木纹细节</span><span class="pill">玻璃桌上的水珠</span><span class="pill">绿叶上的露珠</span><span class="pill">书本的翻页细节</span><span class="pill">织布机的木质齿轮</span><span class="pill">古董钟表的精细齿轮</span><span class="pill">玫瑰花瓣上的水滴</span><span class="pill">玻璃窗上的水珠</span><span class="pill">古老木门的细节</span><span class="pill">装饰艺术的油画</span><span class="pill">精致的家具雕刻</span><span class="pill">水晶吊灯的细节</span><span class="pill">古代工艺品的雕刻</span><span class="pill">精美的珠宝首饰</span><span class="pill">高脚杯中的红酒</span><span class="pill">马车的金属轮毂</span><span class="pill">灯光下的影子效果</span><span class="pill">挂毯的细节纹理</span><span class="pill">装饰画中的人物细节</span><span class="pill">古董酒瓶的精细刻纹</span><span class="pill">书架上的古籍</span><span class="pill">画框中的精致图案</span><span class="pill">沙发上的靠垫装饰</span>
+          </div>
+        </details>
+        <details>
+          <summary>实战范例集 Vol.2（影杀·瞬狱 / 血池虎先锋 / 天马迎新 / 猫武士广智 / 索道飞梭 / 驼客环绕）</summary>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+            <b style="color:var(--txt)">六条范例各教一招：</b>影杀·瞬狱=分段时间码+音效+字幕收尾的标准武侠模板；血池=两段式台词驱动打斗；天马迎新=以图为首帧+敦煌美学（图生视频）；猫武士=30s 八场景参考图长片；索道飞梭=一镜到底极限运镜；驼客=「同步平移环绕」运镜轨迹焊死法（彻底解决方向反向）。
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 1 · 影杀·瞬狱（分段时间码 · 慢镜头120格 · 字幕收尾）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">古装武侠顶级CG风格，电影8K超清画质，色调冷峻僧青蓝，暗部深沉，高光冷白，雾气弥漫。场景为夜晚古庭院，地面有积水倒映月光。绝世武林高手（一袭白袍衣袂飘带，面容白净，长发束起）施展身法瞬移杀敌绝技，快速击败一群黑衣人。全程运镜流畅，采用武侠片常用的「快慢结合」手法，特效华丽，动作精准，慢镜头120格。
+
+0-2秒：远景，月光下，十余名黑衣人手持刀剑，将高手围在中央。高手闭眼静立不动，衣角微动。镜头缓速环绕人物推近。音效：风声，远处鸦鸣。
+2-4秒：高手猛然睁眼，身体瞬间化为一道残影冲向正前方一名敌人，镜头急速跟进（跟焦），残影拉出三道半透明幻影。高手出现在敌人面前，一击击中其胸口，动作干净利落，敌人向后飞出。音效：尖锐的破空声+沉闷的打击声。
+4-6秒：高手击中敌人后立即卸力，原地留下一团白色烟尘残影，镜头快速摇至右侧另一名敌人处。高手已从烟尘中闪现而出，一记腾腿将其踢飞，空中旋转360度落地。音效：闪爆的"砰"声+腿风呼啸。
+6-8秒：高手再次瞬间出现，这次镜头采用低角度仰拍，高手从暗中跃出并向下挥击，双掌击出，击中两名敌人的头顶，敌人应声倒地，残影持续两帧。左侧逆光，右手持剑反手划过。音效：金属摩擦声与倒地轰鸣。
+8-10秒：高手收剑入鞘，连续残影收束。敌人陆续倒地，烟尘弥漫。音效：风声逼人、衣袂飘动声。
+10-12秒：高手立于庭院中央，缓缓慢镜，地面积水倒映身型，画面渐渐沉静。
+12-15秒：画面渐渐消隐，浮现金色手写体字幕：「影杀·瞬狱」。音效：最后是一声清脆饱满的剑鸣，收在冷峻英气。
+负面提示词：肢体僵硬，五官错位，多指少指，穿模，文字乱码，字体变形，色彩断层，过曝，闪烁，画面撕裂，人物比例失调，背景扭曲，逻辑错误，残影过于混乱，动作卡顿，悬浮，超现实</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 2 · 血池初会 · 赤红雷霆（两段式 10s+10s · 台词驱动打斗）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">第一段（0-10s）：血池初会 · 猛虎狂言
+提示词：10秒极致3D动作视频，黑神话写实风，卧虎寺血池场景。(0-4s)：伴随着极其傲慢粗犷的猛汉嗓音大吼出"哪来的野狐狸？穿得花里胡哨！"，血池中央巨大的虎先锋提着带血斩马刀对着镜头张狂咆哮。对面的红狐狸武士（身穿紫色战甲）缓缓压低重心拔出长刀，红瞳在阴影中瞬间爆闪。(4-7s)：虎先锋猛然跃起，庞大的身躯犹如泰山压顶般劈下巨剑，同时带着贪婪的野性低吼道"正好剥了你的皮做个围脖，那点细皮嫩肉，留给俺老汉下酒！"，狐狸武士瞬间化作一道紫色电光，贴地极其丝滑地滑铲闪避。(7-10s)：极速动态追踪镜头，双方在血池中展开极高频的兵刃交锋，狐狸的红雷长刀每一次砍中虎先锋的重甲，都会爆出耀眼的火星、飞溅的鲜血与碎石，打击感极其沉重火爆。
+
+第二段（10-20s）：赤红雷霆 · 一击绝杀
+提示词：10秒极致3D动作视频，衔接上段血池对决。(0-4s)：虎先锋挥舞巨剑使出狂暴的快慢刀连砍，带着极其不屑与暴怒的语气咆哮道"刮痧的玩意儿！就这点力气，还不够给俺挠痒痒！"，狐狸武士开启子弹时间，在半空中优雅翻滚闪避，身后拉出黑白相间的水墨残影。(4-7s)：虎先锋举剑怒喝一声"给我跪下！"，此时画面瞬间转为极具张力的黑色色调，仅保留狐狸的红瞳和刀身闪烁炽热红光。狐狸武士落地瞬间收刀入鞘，周身空气因高压蓄力而极度扭曲。(7-10s)：伴随一道刺眼的闪光，狐狸武士化作一条赤红色雷光瞬间贯穿虎先锋的胸膛，虎先锋庞大的身躯瞬间僵直，发出一声极度错愕和凄厉的惨叫"……呃啊！你这……什么妖法?!"，随后轰然炸裂，化作漫天金色灵蕴光尘与血雾，狐狸武士在光尘中背对镜头潇洒地完成甩血纳刀。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 3 · 天马迎新（以图为首帧 · 敦煌美学 · 图生视频）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">视频提示词（以图为首帧 · 天马迎新）：
+16:9横幅比例，延续参考图朱砂红与流光金的敦煌美学。场景一（0-2.5s）：从参考图起始，神马轻灵地跃出光环，灵蛇的身躯顺势化作一条延绵不断的金色祥云锦缎，如绸带般平铺在天马脚下，完成丝滑的交接。场景二（2.5-5s）：低机位平移镜头，天马在金色云锦大道上疾驰，身后留下绚丽的彩色流光拖尾，画面两侧的敦煌纹样如画卷般向后飞速掠过。场景三（5-7.5s）：镜头切换至全景，神马奔入一片青翠的仙境山水，每蹄落下便在水面晕开一朵缓缓绽放的金色莲花，光影流转极其唯美。场景四（7.5-10s）：镜头顺着马的动势向上摇移，神马飞向一轮红日，身体逐渐化作漫天洒落的金粉与吉祥彩带，画面在充满温暖阳光与新春喜庆氛围中渐淡出。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 4 · 黑白猫武士 VS 广智（30s 八场景 · 参考图长片）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">30秒超高质量3D电影感动作视频提示词，视觉风格极致还原《黑神话：悟空》次世代写实画质，主角为参考图image_2.png中的黑白猫武士（奶牛猫、发光红瞳、长款黑色武士服、极长飘逸黑色飘带），对手为参考图input_file_0.png中的狼教头广智。
+场景一（0-4s）：在火光冲天、残垣断壁的观音禅院中，镜头以慢动作环绕开场，猫武士静立于飘落的余烬中，身后黑色长飘带如灵蛇般舞动，红瞳在阴影中闪烁冷光，对面广智挥舞火焰飞镖发出沉闷的低吼。
+场景二（4-8s）：广智率先发难，巨大的火焰法器划出一道弧形火浪横扫全场，猫武士瞬间爆发，化作一道带有红色闪电残影的黑白流光，以不可思议的s型走位穿过火浪，长刀出鞘划出一道细长的红芒。
+场景三（8-12s）：进入高频率对攻阶段，镜头采用手持摄影般的动态追踪，猫武士的长刀与广智的火镰在空中激烈碰撞，每一次交击都激发出红白交织的弧光与震荡波，四周的木质回廊在能量冲击下不断崩解。
+场景四（12-16s）：广智狂性连招将法器投掷而出，猫武士在空中一个灵巧的翻滚，利用极长黑色飘带缠绕住着火的房梁借力，身形如钟摆般荡开，在毫厘之间避开旋转的火镰。
+场景五（16-20s）：猫武士落地后顺势切入近身位，双方展开极速的拆招博弈，猫武士红瞳光芒大盛，身法忽左忽右，利用视觉差留下多个残影，广智的重击不断落空，地面被砸出巨大的深坑并喷发出熔岩般的能量。
+场景六（20-24s）：进入子弹时间，广智汇聚全身火焰准备施放终极突刺，猫武士冷静收刀入鞘开启「居合」姿态，周身空气因高压能量而产生扭曲纹理，黑色飘带在静谧中缓缓盘旋。
+场景七（24-28s）：巅峰时刻到来，猫武士以肉眼无法捕捉的速度瞬间闪身而过，红雷刀刃划出一道贯穿屏幕的月牙形巨大剑气，精准穿透广智的火焰防线，两者错身而过的瞬间，画面产生如玻璃碎裂般的视觉冲击特效。
+场景八（28-30s）：镜头大仰角拉远，广智庞大的身躯化作漫天灿烂的金色灵蕴粒子消散，黑白猫武士在废墟中心稳稳降落，优雅地完成甩血纳刀动作，黑色飘带随风缓缓垂落，画面在极其唯美且壮丽的晚霞火光中渐隐。</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 5 · 索道飞梭（一镜到底 · 极限运镜 · 15s）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">0秒至2秒。（镜头始终不切！）广角镜头紧贴着倾斜向下的巨大原木滑道，迎着漫天飞舞的锯末与狂风极速向后飞退。野猴沉重地踏着镜头极速向前狂奔！在他身后不到三丈，极其恐怖的"神木雪崩"正在爆发——几十根重达数吨、粗如水缸的远古巨木失去了绳索束缚，如同一堵翻滚的死亡高墙，正顺着滑道轰然碾压下来。他赤脚狂踏着震颤的滑道木板，宽大的粗布麻衣在狂风中疯狂向后扯平，与身后的巨木进行着纯粹的直线生死竞速。
+
+2秒至4.5秒。（一镜到底！）前方滑道上，一根生锈的巨型拦木铁刺因为机关失控，突然从木板下方向上轰然弹起！镜头极其丝滑地向左侧极速平移，变为侧面跟拍。只见顽猴毫不减速，极其狂野地凌空跃起，身体在半空中横向蜷缩成一个球，险之又险地擦着铁刺的锋芒翻滚而过。落地的瞬间，他双手撑地，借着极速向前的动量向前一个狂野的翻滚，直接避开了一块从后方崩飞而来的巨大木片。
+
+4秒至6.5秒。（一镜到底！）镜头顺着他翻滚起身的动作，极其连贯地拉高，越过他的头顶变为后方俯视视角。前方的木质滑道被凌空而起的巨木砸断，前方只有两根用来横跨山涧的极粗麻绳索道。疯狂奔至断裂边缘，双脚在满是木刺的断木上猛然发力，整个人如同一只灰色的野猫，朝着前方的粗大索道横向极速跃出！
+
+6.5秒至9秒。（一镜到底！）在他凌空跃起、身体横向舒展的瞬间，镜头极速绕到他的正前方特写。他猛然反手抽出背上那沉重无比的"千机铁木飞梭"！这块形似巨型冲浪板的古法机械，底部布满着极其粗糙的生铁滑轮与咬合齿轮。他在半空极其狂野地将飞梭狠狠砸在粗大的索道麻绳上，双脚稳稳踩住飞梭表面的生铁扣环！
+
+9秒至11.5秒。（一镜到底！）微距特写极其丝滑地推向飞梭底部的发条核心。顽猴双脚猛然发力踩下机枢，生铁齿轮死死咬住麻绳，粗糙的火石疯狂摩擦，瞬间引燃了藏在飞梭尾部竹筒里的黑火药！一股极其狂暴、夹杂着真实硫磺黑烟与黑火药气味的气流，从飞梭尾部如狂龙般喷发而出！强大的推力硬生生扛住了重量，推着他在索道上横向极速狂飙，生铁滑轮与麻绳摩擦出极其刺眼的长串火星！
+
+11.5秒至13.5秒。（一镜到底！）电影级大特写，绝对静止帧！顽猴正随着喷吐火星的千机飞梭，在山涧索道上以恐怖的速度向前冲刺，乱发狂舞，眼神桀骜狂放。此时，运镜展开一百八十度极速动态环绕！镜头以超越飞驰的速度，绕着他横向旋转半圈，背景是飞速倒退的深山峡谷与后方彻底崩解的巨大滑道，极致的镜头速度感与野性张力拉满！
+
+13.5秒至15秒。（一镜到底！）镜头在他正前方猛然刹车悬停！千机飞梭的黑火药迎来最后一次狂暴的轰鸣，顽猴踩着喷吐火星与黑烟的飞梭，顺着索道的尽头轰然冲上一座废弃的石台跳板！他化作一道裹挟着火花、浓烟与碎石的灰色残影，从镜头上方极速跃过，一头扎入对面的茂密竹海！仅一秒，强行将巨木雪崩甩在身后，画面在第15秒整体酷炫切黑！</div>
+            </div>
+            <div style="margin-top:8px"><b style="color:var(--txt)">范例 6 · 驼客（同步平移环绕 Synchronized Translational Wrap · 运镜轨迹焊死法）</b>
+              <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">【摄影机位与空间绝对指令】（已焊死，彻底解决方向反向问题）
+运镜轨迹（极度重要）：废弃所有原地旋转！采用【同步平移环绕（Synchronized Translational Wrap）】！即：镜头与主角（驼客）同步以极速向前平移。在此过程中，镜头执行一个顺时针的"360度完整环绕回路（Wrap）"。镜头起始点：0秒从驼客正后方越肩视角出发；7.5秒平移环绕至驼客左侧；11秒平移环绕至驼客正前方（倒退跟拍）；12秒平移环绕至驼客左侧；13秒平移环绕回到驼客正后方。运动向量：主角的运动方向永远是【向着画面正前方的尽头狂飙】！
+
+【视觉基调与物理视点】色彩与灯光（Practical light）：狂风暴雨中的千佛洞绝壁（没有任何神佛，只有原木栈道与绝壁），冷蓝色的峡谷闪电对撞火尾的橘红火光。物理看点：极致的跑酷逃遁、重力下的失重感、机械咬合、以及黑火药在空气中爆炸产生的【白色奇爆云冲击波（Mach cone）】！
+
+【人物形象与装束】人物：冷艳狞毅的蒙面驼客。手腕上死死绑着一个极其沉重、布满青铜齿轮与排气管的"千机机械臂（机括护腕）"。载具：驼客的载具为【墨家千机铁骨兽（大型机关兽）】，平时如一把"千机骨伞"形状绑在背后，展开后是一双青铜和铁骨打造、带有火药推进管的机关翼。音效：全程炸裂的雷声与癫狂的笑声（哈哈哈！！）以及她中气十足的【发力狂吼（破——！！！）】！混合着峡谷震耳欲聋的雷暴声！
+
+【剧本正文】
+0秒至4秒：（极速跑酷与丝滑逃逸！）镜头死死锁定在驼客的正后方越肩视角，同步极速向前推进！绝壁上的千佛洞正在坍塌，巨大的原木砸落！驼客背对镜头向前狂飙，动作行云流水！前方一条巨大的佛手横面砸向栈道，驼客发出一声冷冽的低哼，极其惬意地一个极限滑铲，从佛手下方丝滑穿过，同时回眸瞥了一眼身后！
+4秒至7.5秒：（信仰之跃与抛掷铁骨兽！）同步环绕开始！栈道断裂，前方是万丈深渊！镜头死死锁在驼客后方跟拍，同步向前平移的同时，开始顺时针平移环绕（0度至90度）！驼客凌空跃入虚空（失重感），双手从背后猛然抽出一把"千机骨伞"形状的铁骨兽，极其帅气地向着悬崖对面抛掷！
+7.5秒至10秒：（机械咬合与震荡冲击！）镜头持续环绕至驼客左侧（90度），跟随他斜向向前飞！【特效看点】：铁骨兽在半空中极其狂野地自旋咬合死扣在对面绝壁（铿锵金属声），爆出刺眼火星！驼客在失重瞬间被钢丝猛然拽停，身体前成弓形！
+10秒至12秒：（点火引爆与持续环绕至前方！）镜头已同步平移环绕至驼客正前方（180度，倒退跟拍），同步向前飞！驼客面对镜头咧开极其疯狂的癫笑（"哈哈哈！痛快！"，双手狠狠拉动手信！'咔哒'一声机械锁死！紧接着【极致视听留白：全场瞬间死寂，仅剩她癫狂的一声短促吸气】！
+12秒至13秒：（铁骨兽引爆！）镜头已同步平移环绕至驼客左侧（270度），同步向前飞！【特效看点】：铁骨兽尾部的多管青铜排气孔瞬间引燃烈性黑火药！"轰隆——！！！"极其狂暴的橘红焰柱伴随着一圈极具视觉冲击力的空气奇爆云（Mach cone），向下暴烈喷发！刺眼的强光炸亮了峡谷（Practical light）。
+13秒至15秒：（终极装点：倒冲刺！）回到正后方的镜头已同步平移环绕到驼客正后方（360度），死死锁住她飘逸的白狐毛披风。驼客借助铁骨兽反冲推力，倒背展开的千机铁骨兽，向着镜头正上方极速拔高！【特效看点】：他拉出长长的火药尾迹，冲破峡谷月色！驼客对着镜头，沐浴在自己制造的火花雨中，笑着冲破佛洞顶端的窗户，爆发出压抑雷霆万钧、撕心裂肺的终极战吼（给我破——！！！）！画面在15秒伴随着战吼与二胡的余音，丝滑切黑！</div>
+            </div>
+            <div style="margin-top:6px;font-size:11px">注：整理稿，个别字词按上下文补全。核心可抄技巧——①「一镜到底！」每段重复强调（索道飞梭）；②运镜轨迹按秒焊死角度（0°后方→90°左侧→180°前方→270°→360°回位，驼客）；③台词塞进动作段不单独成行（血池）；④以图为首帧时首句写「从参考图起始」（天马）；⑤结尾字幕/切黑收尾（影杀）。</div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- 多镜序列 -->
+  <div id="seq" class="tabpanel" style="display:none">
+    <div class="card">
+      <h2>多镜序列（剧情层 + 首尾帧自动衔接 + 每镜分镜图）</h2>
+      <div class="plot-box">
+        <label>剧情提示词（可选 · 一句话梗概，置于整个序列顶部）</label>
+        <textarea id="seq_plot" rows="2" placeholder="如：少女为复仇潜入雨夜古堡，三镜内完成拔剑对峙。"></textarea>
+      </div>
+      <div id="shots"></div>
+      <button class="btn ghost add" id="addShot">＋ 添加一镜</button>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" id="seq_copy">复制全部提示词</button>
+      </div>
+      <div class="preview" id="seq_preview" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- 打斗版 -->
+  <div id="fight" class="tabpanel" style="display:none">
+    <div class="layout">
+      <div class="card">
+        <h2>打斗版生成器 · 填关键项</h2>
+        <div class="ai-gen" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted)">一句话场景 → AI 自动生成（需先在上方「AI 联网设置」填 Key）</label>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <textarea id="f_aiIn" rows="2" placeholder="如：柳如烟与柳如霜在皇宫内持剑打斗，一镜到底，国风写实，含嘲讽台词" style="flex:1"></textarea>
+            <select id="f_fmt" style="width:150px">
+              <option value="fight">打斗版</option>
+              <option value="basicset">基础设定双层</option>
+              <option value="seedance">Seedance 时间码</option>
+            </select>
+            <button class="btn" id="f_aiGen">AI 生成</button>
+          </div>
+          <div id="f_aiStatus" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+          <textarea id="f_aiOut" rows="6" readonly style="display:none;margin-top:8px;width:100%;background:#0a0c12;color:#d7e3f4;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12px;font-family:monospace"></textarea>
+          <button class="btn ghost" id="f_aiCopy" style="display:none;margin-top:6px;font-size:12px;padding:6px 12px">复制 AI 输出</button>
+        </div>
+        <div class="field"><label><b>段落名称</b></label>
+          <input id="f_name" placeholder="如：黄沙对峙 · 狂风嘲讽" /></div>
+        <div class="field"><label><b>总时长（秒）</b></label>
+          <input id="f_dur" value="10" /></div>
+        <div class="field"><label><b>画质定义</b></label>
+          <input id="f_quality" value="10秒极致3D动作大片" /></div>
+        <div class="field"><label><b>美术风格</b></label>
+          <input id="f_art" value="黑神话写实风" /></div>
+        <div class="field"><label><b>场景</b> 三切片共用保持一致</label>
+          <textarea id="f_scene" rows="2" placeholder="如：漫天黄沙的黄风岭，风化的巨大戈壁石柱，半掩在沙中的残破佛像"></textarea></div>
+        <div class="field"><label><b>人物A</b> 外观+装备+姿态</label>
+          <textarea id="f_a" rows="2" placeholder="如：白衣黑裤的新弘武士（尾巴黑玫瑰斑纹），双手握紧武士刀压低重心"></textarea></div>
+        <div class="field"><label><b>人物B</b> 外观+装备+姿态（对手/BOSS）</label>
+          <textarea id="f_b" rows="2" placeholder="如：身披破旧披风、手持三股钢叉的BOSS黄风大圣"></textarea></div>
+        <div class="field"><label><b>台词</b>（留空 = 纯战斗音效，无对白，放在切片1）</label>
+          <textarea id="f_line" rows="2" placeholder="如：哼，哪来的小崽子？死来！"></textarea></div>
+
+        <div class="field"><label><b>切片1（0-3s 开场对峙）</b> 镜头类型</label>
+          <input id="f_cam1" value="大远景" /></div>
+        <div class="field"><label>切片1 动作</label>
+          <textarea id="f_act1" rows="2" placeholder="如：双方对峙，人物B钢叉猛砸地面挑衅，人物A压低重心蓄势"></textarea></div>
+        <div class="field"><label>切片1 特效</label>
+          <input id="f_fx1" placeholder="如：黄沙弥漫，狂风粒子，丁达尔光" /></div>
+
+        <div class="field"><label><b>切片2（中段交手）</b> 镜头类型</label>
+          <input id="f_cam2" value="极速动态追踪" /></div>
+        <div class="field"><label>切片2 动作</label>
+          <textarea id="f_act2" rows="2" placeholder="如：高频对砍数十次，火花混杂冰晶四溅，腾空连斩"></textarea></div>
+        <div class="field"><label>切片2 特效</label>
+          <input id="f_fx2" placeholder="如：刀光残影，火花冰晶，冲击波" /></div>
+
+        <div class="field"><label><b>切片3（高潮绝杀）</b> 镜头类型</label>
+          <input id="f_cam3" value="环绕仰拍" /></div>
+        <div class="field"><label>切片3 动作</label>
+          <textarea id="f_act3" rows="2" placeholder="如：蓄力凝成巨大冰刃，垂直坠击，冲击波冻结全场，冰雕碎裂"></textarea></div>
+        <div class="field"><label>切片3 特效</label>
+          <input id="f_fx3" placeholder="如：极寒光刃，音爆冲击波，碎裂金色光点" /></div>
+      </div>
+      <div class="card">
+        <h2>实时预览（打斗版切片提示词）</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn" id="f_copy">复制提示词</button>
+        </div>
+        <div class="preview" id="f_preview" style="min-height:420px"></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted)">动作细节需你填——本工具是本地表单组装器，不联网无 AI；填得越具体，产出的提示词越能直接喂给即梦/可灵。</div>
+      </div>
+    </div>
+  </div>
+  <div id="lab" class="tabpanel" style="display:none">
+    <div class="intro" style="font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:6px">
+      把现有资源（词汇库 / 实战范例 Vol.2 / 模板）拆成「<b style="color:var(--accent)">运镜骨架</b>」与「<b style="color:var(--accent-2)">视觉特效</b>」两类素材，自由组合、跨界杂交，<b style="color:var(--txt)">创新出新运镜与新视觉效果</b>。
+      ① 勾选运镜 + 特效 → 「生成融合预览」本地合成可落地的组合方案；② 「AI 跨界创新」送联网模型，基于所选素材杂交出 1+1&gt;2 的全新运镜+特效组合。
+    </div>
+
+    <div class="lab-sec">
+      <label>一句话基础场景 / 主体（作为新组合的载体）</label>
+      <textarea id="lab_scene" rows="2" placeholder="如：黑袍剑修在崩塌的冰川神殿中，以一敌百，国风写实，冷蓝调"></textarea>
+    </div>
+
+    <div class="lab-sec">
+      <label>运镜资源（多选 · 来自实战范例 Vol.2 / 词汇库，可叠加多条）</label>
+      <div id="lab_cams">
+        <span class="chip cam-chip" data-key="yijing">一镜到底·索道飞梭</span>
+        <span class="chip cam-chip" data-key="wrap">同步平移环绕·驼客</span>
+        <span class="chip cam-chip" data-key="segtime">分段时间码+字幕收尾·影杀</span>
+        <span class="chip cam-chip" data-key="slowmo">慢镜头120格</span>
+        <span class="chip cam-chip" data-key="bullettime">子弹时间</span>
+        <span class="chip cam-chip" data-key="pov">POV主观视角·坠落</span>
+        <span class="chip cam-chip" data-key="pendulum">钟摆荡开·借力</span>
+        <span class="chip cam-chip" data-key="recoil">反冲拔高·展翼</span>
+        <span class="chip cam-chip" data-key="micro">微距定格·粒子</span>
+        <span class="chip cam-chip" data-key="double">双重曝光/镜像</span>
+        <span class="chip cam-chip" data-key="fish">鱼眼旋转·畸变</span>
+        <span class="chip cam-chip" data-key="hand">手持动态追踪·纪实</span>
+        <span class="chip cam-chip" data-key="rise">升格/降格·升格慢镜</span>
+        <span class="chip cam-chip" data-key="mirror">镜面反射·对称</span>
+      </div>
+    </div>
+
+    <div class="lab-sec">
+      <label>视觉特效资源（多选 · 来自范例/词汇库）</label>
+      <div id="lab_vfxs">
+        <span class="chip vfx-chip" data-key="tyndall">丁达尔效应</span>
+        <span class="chip vfx-chip" data-key="mach">马赫锥冲击云</span>
+        <span class="chip vfx-chip" data-key="glass">玻璃碎裂</span>
+        <span class="chip vfx-chip" data-key="ink">水墨残影</span>
+        <span class="chip vfx-chip" data-key="arc">红白弧光</span>
+        <span class="chip vfx-chip" data-key="gold">金色灵蕴粒子</span>
+        <span class="chip vfx-chip" data-key="lava">熔岩能量喷发</span>
+        <span class="chip vfx-chip" data-key="fire">火光冲天+玻璃四溅</span>
+        <span class="chip vfx-chip" data-key="shell">慢动作弹壳悬浮</span>
+        <span class="chip vfx-chip" data-key="weightless">失重感</span>
+        <span class="chip vfx-chip" data-key="neon">霓虹光效</span>
+        <span class="chip vfx-chip" data-key="oc">OC渲染8K</span>
+        <span class="chip vfx-chip" data-key="chromatic">色散/色差畸变</span>
+        <span class="chip vfx-chip" data-key="bloom">体积光晕·Bloom</span>
+      </div>
+    </div>
+
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="lab_mode">
+        <option value="overlay">融合模式：骨架叠加（运镜为骨，特效为皮）</option>
+        <option value="random">随机灵感碰撞（从全库随机抽一对杂交）</option>
+      </select>
+      <button class="btn" id="lab_fuse">生成融合预览</button>
+      <button class="btn ghost" id="lab_innovate">AI 跨界创新（需填 Key）</button>
+    </div>
+    <div id="labStatus" style="font-size:12px;color:var(--muted);margin:4px 0"></div>
+
+    <textarea id="labOut" rows="12" readonly style="display:none;width:100%;background:#0a0c12;color:#d7e3f4;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap"></textarea>
+    <button class="btn ghost" id="labCopy" style="display:none;margin-top:6px;font-size:12px;padding:6px 12px">复制方案</button>
+  </div>
+  <div id="plot" class="tabpanel" style="display:none">
+    <div class="intro" style="font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:6px">
+      <b style="color:var(--txt)">先写剧情，再拆分镜，按剧情生成/编辑提示词</b>——避免提示词跑偏。流程：① 写<strong>剧情文案</strong>（整段故事/旁白）→ ② 选<strong>拆分方式</strong>一键拆成<strong>分镜剧情</strong> → ③ 对每镜「AI 生成提示词」（AI 严格贴合该镜剧情，不擅自加戏）→ ④ 导出完整分镜脚本（含【剧情文案】锚定块）。
+    </div>
+
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+      <span style="font-size:12px;color:var(--muted)">剧集：</span>
+      <div id="plot_eps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <button class="btn ghost" id="plot_newEp" style="font-size:12px;padding:4px 10px;margin:0">＋ 新一集</button>
+    </div>
+
+    <div class="lab-sec">
+      <label>① 剧情文案（整体故事 / 旁白 / 梗概，越具体越不易跑偏）</label>
+      <textarea id="plot_story" rows="5" placeholder="如：少女阿绾为报灭门之仇，雨夜潜入古堡。第一镜她立于门前深吸一口气；第二镜推门而入，烛火骤明；第三镜与黑袍杀手对峙拔剑……"></textarea>
+    </div>
+
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="plot_style" placeholder="全局风格锚定词（可选，如：国风漫剧、厚涂、冷蓝雨夜）" style="flex:1;min-width:220px" />
+      <select id="plot_split">
+        <option value="blank">拆分：按空行（每段一镜）</option>
+        <option value="line">拆分：按行（每行一镜）</option>
+        <option value="manual">手动添加分镜</option>
+      </select>
+      <button class="btn" id="plot_splitBtn">拆分分镜</button>
+      <button class="btn ghost" id="plot_addBtn">+ 手动加一镜</button>
+      <button class="btn ghost" id="plot_genall">全部 AI 生成</button>
+    </div>
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+      <span style="font-size:12px;color:var(--muted)">示例剧本：</span>
+      <select id="plot_sample">
+        <option value="">载入一部示例（新建一集并自动填文案+风格+拆分）</option>
+        <option value="ep1">夜枭·第1集（3个一镜到底片段：入场/大战/绝杀）</option>
+        <option value="ep2">夜枭·第2集（接第1集反转：黑市/擂台/突围）</option>
+        <option value="shen1">神童·满·第1集（男童主角：古建1v3闯关）</option>
+        <option value="shen2">神童·满·第2集（男童主角：现代宿敌阿岩）</option>
+        <option value="shen3">神童·满·第3集（男童主角：办公室蓝电真相）</option>
+        <option value="shen4">神童·满·第4集（男童主角：记忆回流）</option>
+        <option value="shen5">神童·满·第5集（男童主角：义体妹妹）</option>
+        <option value="shen6">神童·满·第6集（男童主角：初遇微光）</option>
+      </select>
+      <button class="btn ghost" id="plot_loadSample" style="font-size:12px;padding:6px 12px">载入</button>
+    </div>
+    <div class="lab-sec" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">
+      <span style="font-size:12px;color:var(--muted)">风格预设（点一下填好全局锚定）：</span>
+      <button class="btn ghost plot_stylep" data-s="爽片·一镜到底：电影级写实、HDR 高动态范围、冷蓝霓虹、高速连续运镜、强打击感、粒子丰富、8K 超写实" style="font-size:11px;padding:4px 10px;margin:0">爽片·一镜到底</button>
+      <button class="btn ghost plot_stylep" data-s="科幻灾难：电影级写实科幻、高动态范围、冷调夜色、探照灯暖束、异种生物微光、粒子（尾气/水汽）丰富" style="font-size:11px;padding:4px 10px;margin:0">科幻灾难</button>
+      <button class="btn ghost plot_stylep" data-s="赛博朋克：霓虹都市、高反光金属、体积光 Bloom、雨水物理模拟、OC 渲染 8K" style="font-size:11px;padding:4px 10px;margin:0">赛博朋克</button>
+      <button class="btn ghost plot_stylep" data-s="武侠写意：水墨质感、留白构图、慢镜头、意境光影、电影级胶片感" style="font-size:11px;padding:4px 10px;margin:0">武侠写意</button>
+      <button class="btn ghost plot_stylep" data-s="90年代港风武侠电影质感，低饱和冷青色调，柯达35mm胶片，自然胶片颗粒，轻微环境体积雾；袁和平动作设计、徐克新武侠；斯坦尼康贴身跟拍、自然动态运动模糊、超高速打斗无间歇、动作极快极准极狠、顿挫卡点、招招落实、全程不跳切" style="font-size:11px;padding:4px 10px;margin:0">港风武侠</button>
+    </div>
+    <div id="plot_status" style="font-size:12px;color:var(--muted);margin:4px 0"></div>
+
+    <div id="plot_beats"></div>
+
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;margin-top:10px">
+      <button class="btn" id="plot_export">导出完整分镜脚本</button>
+    </div>
+    <textarea id="plot_preview" rows="14" readonly style="display:none;width:100%;background:#0a0c12;color:#d7e3f4;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap"></textarea>
+    <button class="btn ghost" id="plot_copy" style="display:none;margin-top:6px;font-size:12px;padding:6px 12px">复制分镜脚本</button>
+  </div>
+
+  <!-- 规格库（按《分镜提示词与规格》14 类分类） -->
+  <div id="spec" class="tabpanel" style="display:none">
+    <div class="intro" style="font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:8px">
+      按《分镜提示词与规格》原文分类整理 ——
+      <b style="color:var(--accent)">①时间卡点 ②运镜语言 ③动态特效 ④节奏设计 ⑤画面质感 ⑥S-A-C-S-C ⑦升维指南 ⑧分镜弹药 ⑨末日全要素 ⑩史诗特写·时间轴 ⑪赛博朋克 ⑫一镜到底 ⑬转场变身 ⑭顶配基底</b>。
+      每个 chip 点一下即插入对应 10 要素字段（默认按分类自动匹配，也可在上方针定目标字段）。
+    </div>
+    <div class="lab-sec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--muted)">芯片插入目标：</span>
+      <select id="spec_target" style="width:230px">
+        <option value="auto">自动（按分类匹配 10 要素）</option>
+        <option value="s_subject">1 主体锁定</option>
+        <option value="s_action">2 动作描述</option>
+        <option value="s_camera">3 镜头运动</option>
+        <option value="s_shot">4 景别/构图</option>
+        <option value="s_lighting">5 光影氛围</option>
+        <option value="s_style">6 风格一致性</option>
+        <option value="s_rhythm">7 节奏与时长</option>
+        <option value="s_spatial">8 空间关系</option>
+        <option value="s_frames">9 首尾帧约束</option>
+        <option value="s_negative">10 负面提示词</option>
+      </select>
+      <span id="spec_tip" style="font-size:12px;color:var(--accent)"></span>
+    </div>
+
+    <div class="card">
+      <details open>
+        <summary>① 时间精确卡点 · 分镜结构化模板（每个分镜精确到秒）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">核心公式（全要素结构化）：</b>【主体锚定】+【动作动线】+【场景氛围】+【运镜调度】+【动态特效】+【节奏设计】+【BGM/音效】+【稳定约束】
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px"># 分镜 1（0-2秒）：铺垫建立
+- 主体：[具体人物/物品]
+- 动作：[具体微动作，缓慢连贯]
+- 场景：[地点+光线+环境]
+- 运镜：[景别+运动方式]
+- 特效：[动态效果分层]
+- BGM：[音效+音量dB]</div>
+          <div style="margin-top:8px"><b style="color:var(--txt)">时间轴节奏段 → 插入「节奏与时长」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="rhythm" data-v="0-2秒：铺垫期，中景固定，建立场景、引入主体">0-2秒 铺垫</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="2-3.5秒：递进期，推进至近景，动作/特效/运镜逐级升级">2-3.5秒 递进</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="3.5-5秒：爆发期，急速推至大特写，三段式特效释放">3.5-5秒 爆发</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="前2秒铺垫 → 每1.5秒递进一次 → 末段3-5秒爆发并定格">节奏总纲</span>
+            <span class="chip spec-chip" data-f="frames" data-v="首帧：主体静止建立；尾帧：动作/特效峰值定格">首尾帧卡点</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>② 运镜语言 · 专业术语库（基础 / 黄金组合 / 风格化 / 节奏词 / 氛围词）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+            <tr><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">类型</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">精准提示词</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">使用场景</th></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">推镜</td><td style="border:1px solid var(--line);padding:4px 6px">镜头缓缓向前推进、平滑推近至人物面部特写、焦点逐渐锁定主体、缓慢推近突出细节</td><td style="border:1px solid var(--line);padding:4px 6px">推进叙事，把注意力从环境拉到主体</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">拉镜</td><td style="border:1px solid var(--line);padding:4px 6px">镜头向后平稳拉远、缓慢拉远展现场景全貌、史诗式后拉、从特写拉远至大全景</td><td style="border:1px solid var(--line);padding:4px 6px">展现场景，营造宏大感、孤独感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">移镜</td><td style="border:1px solid var(--line);padding:4px 6px">向左/右平稳横移、跟拍主体水平平移、横向移动展现环境全貌</td><td style="border:1px solid var(--line);padding:4px 6px">平稳跟随，营造沉浸式观感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">跟镜</td><td style="border:1px solid var(--line);padding:4px 6px">稳定跟拍移动主体、主体始终居中追踪、背景带动态模糊、肩扛式跟拍</td><td style="border:1px solid var(--line);padding:4px 6px">锁定移动主体，增强代入感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">摇镜</td><td style="border:1px solid var(--line);padding:4px 6px">镜头缓慢向上/向下摇、水平横摇扫视整个场景、从左到右缓慢摇镜</td><td style="border:1px solid var(--line);padding:4px 6px">扫视环境，模拟人眼环顾四周</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">升降镜</td><td style="border:1px solid var(--line);padding:4px 6px">镜头垂直缓慢抬升、从低角度缓缓升起至高空俯瞰、缓缓下降至平视</td><td style="border:1px solid var(--line);padding:4px 6px">改变视角，营造宏大感、压迫感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">环绕镜</td><td style="border:1px solid var(--line);padding:4px 6px">环绕主体缓慢旋转一周、半环绕主体运动、低机位仰角环绕、环绕中始终锁定主体</td><td style="border:1px solid var(--line);padding:4px 6px">360度展现主体，打造高级电影感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">固定</td><td style="border:1px solid var(--line);padding:4px 6px">稳定冷静的旁观视角</td><td style="border:1px solid var(--line);padding:4px 6px">突出动作的爆发瞬间</td></tr>
+          </table>
+          <div style="margin-top:8px"><b style="color:var(--txt)">基础运镜 → 插入「镜头运动」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="camera" data-v="镜头缓缓向前推进，平滑推近至面部特写，焦点逐渐锁定主体">推</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头向后平稳拉远，史诗式后拉，从特写拉远至大全景">拉</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头向左平稳横移，跟拍主体水平平移，横向展现环境全貌">移</span>
+            <span class="chip spec-chip" data-f="camera" data-v="稳定跟拍移动主体，主体始终居中追踪，背景带动态模糊">跟</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头缓慢向上摇，水平横摇扫视整个场景">摇</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头垂直缓慢抬升，从低角度缓缓升起至高空俯瞰">升</span>
+            <span class="chip spec-chip" data-f="camera" data-v="环绕主体缓慢旋转一周，低机位仰角环绕，始终锁定主体">环绕</span>
+            <span class="chip spec-chip" data-f="camera" data-v="固定机位，稳定冷静的旁观视角，突出动作爆发瞬间">固定</span>
+          </div>
+          <div style="margin-top:8px"><b style="color:var(--txt)">黄金组合（效果翻倍）</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="camera" data-v="镜头缓慢向前推进的同时轻微环绕主体">推进+环绕</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头向后平稳拉远的同时缓缓向上抬升">拉远+抬升</span>
+            <span class="chip spec-chip" data-f="camera" data-v="稳定跟拍主体的同时水平匀速横移">跟拍+横移</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头缓慢向上摇的同时垂直缓缓抬升">上摇+抬升</span>
+            <span class="chip spec-chip" data-f="camera" data-v="环绕主体的同时缓慢推近至特写">环绕+推近</span>
+          </div>
+          <div style="margin-top:8px"><b style="color:var(--txt)">风格化运镜</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="camera" data-v="斯坦尼康级丝滑稳定运镜">斯坦尼康丝滑</span>
+            <span class="chip spec-chip" data-f="camera" data-v="手持微震动的呼吸感运镜">手持呼吸感</span>
+            <span class="chip spec-chip" data-f="camera" data-v="盗梦空间式轴向旋转运镜">轴向旋转</span>
+            <span class="chip spec-chip" data-f="camera" data-v="一镜到底长镜头，全程不切">一镜到底</span>
+            <span class="chip spec-chip" data-f="camera" data-v="希区柯克变焦运镜（滑动变焦）">希区柯克变焦</span>
+            <span class="chip spec-chip" data-f="camera" data-v="慢镜头运镜，120fps 升格">慢镜头</span>
+            <span class="chip spec-chip" data-f="camera" data-v="延时摄影运镜">延时摄影</span>
+          </div>
+          <div style="margin-top:8px"><b style="color:var(--txt)">动态与节奏关键词 → 插入「动作描述」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="action" data-v="速度感：疾驰、呼啸、电光石火、残影、模糊、瞬间">速度感</span>
+            <span class="chip spec-chip" data-f="action" data-v="力量感：爆裂、粉碎、冲击、震颤、撼动、摧枯拉朽">力量感</span>
+            <span class="chip spec-chip" data-f="action" data-v="紧张感：骤然、猝不及防、千钧一发、间不容发">紧张感</span>
+            <span class="chip spec-chip" data-f="action" data-v="节奏感：紧接着、与此同时、旋即、一连串、缓慢地…突然！">节奏感</span>
+          </div>
+          <div style="margin-top:8px"><b style="color:var(--txt)">视听氛围词 → 插入「光影氛围」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="lighting" data-v="视觉：火光冲天、玻璃四溅、尘土飞扬、慢动作、子弹时间、冷色调">视觉氛围</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="听觉：金属刮擦、引擎轰鸣、寂静无声、心跳声放大、由远及近的警笛">听觉氛围</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="感觉：压迫感、窒息感、眩晕感、肾上腺飙升">感觉氛围</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>③ 动态效果 · 分层特效词库（含强度档位）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+            <tr><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">效果类型</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">精准提示词</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">强度</th></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">动态模糊</td><td style="border:1px solid var(--line);padding:4px 6px">背景带动态模糊、前景清晰主体、运镜产生自然运动模糊</td><td style="border:1px solid var(--line);padding:4px 6px">轻度/中度/重度</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">光轨拖尾</td><td style="border:1px solid var(--line);padding:4px 6px">光球移动产生光轨拖尾、能量流动留下轨迹、光带环绕旋转</td><td style="border:1px solid var(--line);padding:4px 6px">短拖尾/长拖尾/渐消散</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">音爆波纹</td><td style="border:1px solid var(--line);padding:4px 6px">能量爆发产生音爆波纹、冲击波向外扩散、声波可视化震动</td><td style="border:1px solid var(--line);padding:4px 6px">小波纹/大波纹/多层爆发</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">气流溅射</td><td style="border:1px solid var(--line);padding:4px 6px">能量释放伴随气流溅射、光粒喷射、尘埃被气流冲击扩散</td><td style="border:1px solid var(--line);padding:4px 6px">轻溅射/强溅射/环形扩散</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">闪电分层</td><td style="border:1px solid var(--line);padding:4px 6px">闪电分层爆发、多道闪电同时释放、闪电+电弧+光球三段式</td><td style="border:1px solid var(--line);padding:4px 6px">单层/双层/多层叠加</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">能量漩涡</td><td style="border:1px solid var(--line);padding:4px 6px">能量漩涡旋转、粒子漩涡吸入、光带螺旋上升</td><td style="border:1px solid var(--line);padding:4px 6px">慢速/快速/轴向旋转</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">冲击波分段</td><td style="border:1px solid var(--line);padding:4px 6px">冲击波三段式释放、先弱后强再扩散、冲击波+震动+气流组合</td><td style="border:1px solid var(--line);padding:4px 6px">两段/三段/渐进式</td></tr>
+          </table>
+          <div style="margin-top:8px"><b style="color:var(--txt)">特效分层 → 插入「光影氛围」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="lighting" data-v="动态模糊：背景带动态模糊，前景主体清晰，运镜产生自然运动模糊（中度）">动态模糊</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="光轨拖尾：光球移动产生长拖尾，能量流动留下轨迹，光带环绕旋转">光轨拖尾</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="音爆波纹：能量爆发产生音爆波纹，冲击波向外扩散（多层爆发）">音爆波纹</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="气流溅射：能量释放伴随气流溅射，光粒喷射，尘埃环形扩散">气流溅射</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="闪电分层：多道闪电同时释放，闪电+电弧+光球三段式（多层叠加）">闪电分层</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="能量漩涡：粒子漩涡吸入，光带螺旋上升（快速轴向旋转）">能量漩涡</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="冲击波分段：三段式释放，先弱后强再扩散，冲击波+震动+气流组合">冲击波分段</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>④ 节奏设计 · 递进与爆发模板</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">递进核心原则：</b>前2秒铺垫（建立场景、引入主体）→ 每1.5秒递进（情绪/特效/运镜逐步升级）→ 最后爆发定格（3-5秒高潮名场面）
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">【节奏轴设计】
+0-2秒（铺垫期）：景别：中景固定 / 动作：人物静止，眼神凝视 / 特效：无或极微弱 / BGM：环境音-25dB，静音铺垫
+2-3.5秒（递进期）：景别：推进至近景 / 动作：抬手凝聚能量 / 特效：光球出现，电弧微弱闪烁 / BGM：电子音效渐起，-20dB
+3.5-5秒（爆发期）：景别：急速推至大特写 / 动作：能量释放，手掌向前推 / 特效：闪电+漩涡+冲击波三段式爆发，光轨拖尾拉长 / BGM：爆发音效-5dB，BGM高潮，音爆波纹扩散
+
+【情绪递进曲线】平静（0-2秒）→ 蓄力（2-3.5秒）→ 释放（3.5-5秒）→ 定格（最后0.5秒）</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="rhythm" data-v="节奏轴：0-2秒铺垫（中景固定，环境音-25dB）→ 2-3.5秒递进（推进近景，音效-20dB渐起）→ 3.5-5秒爆发（急速推至大特写，音效-5dB）">节奏轴三段</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="情绪递进曲线：平静→蓄力→释放→最后0.5秒定格">情绪曲线</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="总时长5秒，每1.5秒递进一次强度，末段爆发后定格0.5秒">1.5秒递进</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑤ 画面质感 · 电影级调性词库</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+            <tr><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">质感维度</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">精准提示词</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">效果说明</th></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">分辨率</td><td style="border:1px solid var(--line);padding:4px 6px">4K超高清、8K细节、细节丰富、锐度清晰</td><td style="border:1px solid var(--line);padding:4px 6px">画质细腻度</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">电影级质感</td><td style="border:1px solid var(--line);padding:4px 6px">电影级质感、胶片颗粒感、画面纯净无噪点</td><td style="border:1px solid var(--line);padding:4px 6px">整体观感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">锐化效果</td><td style="border:1px solid var(--line);padding:4px 6px">电影质感锐化、边缘清晰锐化、细节锐化</td><td style="border:1px solid var(--line);padding:4px 6px">增强画面锐度</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">暗角效果</td><td style="border:1px solid var(--line);padding:4px 6px">电影暗角、四周暗角、暗角柔化过渡</td><td style="border:1px solid var(--line);padding:4px 6px">画面氛围感</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">胶片风格</td><td style="border:1px solid var(--line);padding:4px 6px">柯达胶片色调、富士胶片色调、复古港风胶片色调</td><td style="border:1px solid var(--line);padding:4px 6px">色彩风格</td></tr>
+          </table>
+          <div style="margin-top:8px"><b style="color:var(--txt)">质感词 → 插入「风格一致性」</b></div>
+          <div style="margin-top:4px">
+            <span class="chip spec-chip" data-f="style" data-v="4K超高清，8K细节，细节丰富，锐度清晰">分辨率</span>
+            <span class="chip spec-chip" data-f="style" data-v="电影级质感，胶片颗粒感，画面纯净无噪点">电影级质感</span>
+            <span class="chip spec-chip" data-f="style" data-v="电影质感锐化，边缘清晰锐化，细节锐化增强">锐化</span>
+            <span class="chip spec-chip" data-f="style" data-v="电影暗角，四周暗角，暗角柔化过渡">暗角</span>
+            <span class="chip spec-chip" data-f="style" data-v="柯达胶片色调">柯达胶片</span>
+            <span class="chip spec-chip" data-f="style" data-v="富士胶片色调">富士胶片</span>
+            <span class="chip spec-chip" data-f="style" data-v="复古港风胶片色调">复古港风</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑥ S-A-C-S-C 五步提问法（快速进阶）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">🔹 锚定主体（Subject）：贴参考图 + 明确主体/特征/环境，拒绝模糊。例：参考图XXX，白色短发女生，日系校服，樱花树下
+🔹 定义动作（Action）：用英文动词标物理动作，区分快慢幅度。例：walk slowly（缓慢行走），抬手轻触樱花
+🔹 规范运镜（Camera）：专业摄影术语 + 英文标注，不写主观描述。例：close-up（特写），slow pan right（缓慢右移）
+🔹 设定风格（Style）：光线 + 画质 + 艺术风格，替掉「高级感」空话。例：影棚柔光，4K超清，日系清新胶片风
+🔹 添加约束（Constraints）：「无XX」句式列商业禁忌。例：无水印，无侵权元素，无模糊边缘，人物五官无变形</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="subject" data-v="参考图首帧一致，白色短发女生，日系校服，立于樱花树下">S·锚定主体</span>
+            <span class="chip spec-chip" data-f="action" data-v="walk slowly（缓慢行走），抬手轻触樱花，动作缓慢连贯">A·定义动作</span>
+            <span class="chip spec-chip" data-f="camera" data-v="close-up（特写），slow pan right（缓慢右移），50mm">C·规范运镜</span>
+            <span class="chip spec-chip" data-f="style" data-v="影棚柔光，4K超清，日系清新胶片风">S·设定风格</span>
+            <span class="chip spec-chip" data-f="negative" data-v="无水印，无侵权元素，无模糊边缘，人物五官无变形">C·添加约束</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑦ 导演级升维指南（从描述到设计）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+            <tr><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">传统做法</th><th style="border:1px solid var(--line);padding:4px 6px;text-align:left">升维做法</th></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">用鱼眼镜头</td><td style="border:1px solid var(--line);padding:4px 6px">180度鱼眼+畸变k1=-0.3+孔洞60%</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">温柔的声音</td><td style="border:1px solid var(--line);padding:4px 6px">基频120Hz+胸腔共鸣60%+温暖度7/10</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">参考视频1</td><td style="border:1px solid var(--line);padding:4px 6px">提取@视频1的[光线参数]，应用于[对象]</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">好看的构图</td><td style="border:1px solid var(--line);padding:4px 6px">三分法+黄金分割点+下1/3占比</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:4px 6px">欢快的音乐</td><td style="border:1px solid var(--line);padding:4px 6px">140BPM+C大调+康加鼓-5dB+小号0dB</td></tr>
+          </table>
+          <div style="margin-top:6px"><b style="color:var(--txt)">终极心法：</b>❌ 传统：告诉 AI 要什么（生成一个温馨的早晨场景）→ ✅ 升维：教 AI 怎么做（4个分镜×每镜头3个参数×3层声音设计）</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="camera" data-v="180度鱼眼镜头+畸变k1=-0.3+孔洞60%">鱼眼升维</span>
+            <span class="chip spec-chip" data-f="camera" data-v="三分法构图+黄金分割点+下1/3占比">构图升维</span>
+            <span class="chip spec-chip" data-f="shot" data-v="28-50mm黄金影视焦段，光圈F1.8浅景深，60fps">参数化机位</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="侧逆光45°入射角，硬光35%+柔化漫射光65%，伦勃朗光影，色温5200K">光影数值化</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="4个分镜×每镜头3个参数×3层声音设计">结构化分镜</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑧ 分镜描述弹药 · 万能结构模板 · 进阶技巧（仓库枪战 9 镜）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">万能结构：</b>【镜头号】（可选）【景别】+【镜头运动/角度】+【核心动作/事件】+【情绪/氛围/细节特写】+【（可加）音效/转场】
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">实战示例：最终决战，仓库枪战与肉搏
+1.【大远景-俯拍】昏黄的仓库，集装箱如迷宫。两道手电光束猝然交错，枪声撕破寂静。
+2.【中景-跟拍】主角贴靠集装箱疾跑，子弹「砰砰砰」在身侧溅起一连串火花碎屑。
+3.【特写】主角呼吸急促，快速更换弹夹，金属卡榫声清脆。
+4.【全景-慢动作】反派从高处跃下，主角同时仰身滑铲，两人擦身而过的瞬间，各自开枪。空弹壳晶莹地悬浮在空中。
+5.【近景】手枪子弹打空。两人目光对撞，同时弃枪，冲向对方。
+6.【中景-快速切换】一连串凶狠、写实的近身格斗：关节技、重拳、踢击。闷响与喘息交织。
+7.【特写】主角被扼住咽喉，手艰难地摸索，终于抓住一根生锈的铁钎。
+8.【全景-固定镜头】主角用尽最后力气，反手刺出。动作骤然停止。反派僵住，缓缓倒地。
+9.【近景-升格】主角精疲力竭地跪倒，汗水混着血水滴落地面。远处，警笛声由远及近。
+
+高质量提示词示例：电影感，顶级CG渲染，动作大片。全景，慢动作，黑客帝国风格，主角后仰躲过子弹，子弹轨迹清晰，黑色风衣飘舞，冷色调，霓虹光影，未来都市背景，极具张力。
+进阶四招：①对比与静默 ②POV主观视角 ③比喻与通感 ④时间操控（子弹时间/快速剪辑）</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="camera" data-v="大远景-俯拍 → 中景-跟拍 → 特写 → 全景-慢动作 → 近景 → 中景-快速切换 → 特写 → 全景-固定 → 近景-升格">9镜骨架</span>
+            <span class="chip spec-chip" data-f="action" data-v="对比与静默：一切声响消失，只听见心跳；下一秒玻璃轰然炸裂，黑影破窗而入">对比与静默</span>
+            <span class="chip spec-chip" data-f="camera" data-v="POV主观视角（主角视点），天旋地转，地面快速逼近——正从高楼坠落">POV视角</span>
+            <span class="chip spec-chip" data-f="action" data-v="比喻与通感：子弹如蜂群般呼啸掠过，热浪舔舐着镜头">比喻通感</span>
+            <span class="chip spec-chip" data-f="action" data-v="子弹时间：时间仿佛凝固，子弹旋转着穿过空气，轨迹清晰可见，擦过脸颊">子弹时间</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="快速剪辑：一连串不到一秒的闪回：沾血的照片、倒计时、爱人的脸，眼神骤然坚定">快速闪回</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑨ 末日全要素 · 硬核动作 / 惊悚氛围 / 运镜 / 音效 dB / 负面词</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">通用公式：</b>[景别] + [运镜方式] + [末日废墟风格词] + [光影氛围] + [细节] + [画质参数]
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">示例：广角全景，无人机缓慢拉升运镜，末日废墟城市，断壁残垣崩塌高楼，荒草丛生，灰蒙蒙沙尘弥漫，低饱和冷色调，阴郁压抑氛围，8K超高清，电影级光影
+示例：低角度手持跟拍，剧烈晃动，主角在破碎的街道上奔跑，身后是倒塌的建筑，尘土飞扬，昏黄落日逆光，紧张刺激，35mm胶片质感，颗粒感
+
+一、废墟探索：单手抓握锈蚀钢筋向上攀爬 / 低姿匍匐穿过倒塌横梁 / 助跑纵身跨越楼体深渊 / 滑铲穿过坠落的混凝土块 / 抓生锈绳索速降
+二、追逐逃亡：在倾斜楼板上狂奔 / 破碎街道急转弯 / 手肘撞碎玻璃破窗 / 掩体后躲避火花 / 滚翻闪避冲击波
+三、废土近战：双手挥击生锈钢管 / 匕首快速刺击 / 手臂格挡反击 / 背后锁喉制服 / 举起混凝土块砸击
+四、惊悚元素：黑暗中闪过黑影残影 / 特写沾血的手与断裂指甲 / 墙上巨大扭曲影子靠近 / 地上拖行血迹 / 碎镜中反射不存在的人影
+五、惊悚运镜：0.5秒快速闪切 / 240fps超慢动作特写 / 抖动失焦后重聚焦 / 障碍物后窥视跟拍 / 突然快速拉近脸部
+六、音效dB：末日风声-22dB、远处雷声-26dB、废墟异响-24dB、雨声-20dB、远处嘶吼-28dB｜脚步声-16dB、玻璃破碎-12dB、金属碰撞-14dB、爆炸-8dB、呼吸-18dB｜尖叫-10dB、心跳-16dB、弦乐颤音-20dB、低频嗡鸣-22dB</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="camera" data-v="广角全景，无人机缓慢拉升运镜，末日废墟城市，断壁残垣崩塌高楼，荒草丛生，灰蒙蒙沙尘弥漫，低饱和冷色调，阴郁压抑氛围，8K超高清，电影级光影">末日全景公式</span>
+            <span class="chip spec-chip" data-f="camera" data-v="低角度手持跟拍，剧烈晃动，主角在破碎的街道上奔跑，身后是倒塌的建筑，尘土飞扬，昏黄落日逆光，紧张刺激，35mm胶片质感，颗粒感">末日跟拍公式</span>
+            <span class="chip spec-chip" data-f="action" data-v="单手抓握锈蚀钢筋向上攀爬，脚踩破碎墙体凸起，身体摇晃保持平衡，翻越断裂的楼板边缘">废墟攀爬</span>
+            <span class="chip spec-chip" data-f="action" data-v="助跑后纵身跨越楼体之间的深渊，身体在空中舒展，落地时膝盖弯曲缓冲">跳跃跨越</span>
+            <span class="chip spec-chip" data-f="action" data-v="在破碎的街道上突然急转弯，身体倾斜，差点摔倒，身后追兵紧逼">紧急转向</span>
+            <span class="chip spec-chip" data-f="action" data-v="双手紧握生锈钢管，用力挥向敌人，钢管带着风声">钢管挥击</span>
+            <span class="chip spec-chip" data-f="camera" data-v="0.5秒快速闪切镜头，在主角、威胁、环境之间快速切换">快速闪切</span>
+            <span class="chip spec-chip" data-f="camera" data-v="240fps超慢动作特写，子弹飞过、玻璃破碎、血液飞溅">240fps慢特</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头剧烈抖动，短暂失焦后重新聚焦在威胁上">抖动失焦</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="末日风声-22dB，远处沉闷雷声-26dB，碎石掉落声-24dB，远处嘶吼-28dB">末日环境音</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="沉重的脚步声踩在碎石瓦砾上-16dB，尖锐的玻璃破碎声-12dB，爆炸声伴随冲击波-8dB">末日动作音</span>
+            <span class="chip spec-chip" data-f="negative" data-v="漂浮的物体，反重力，人物穿模，四肢扭曲，动作僵硬，表情崩坏，多余的手指，畸形的身体，干净整洁的建筑，没有锈迹，没有灰尘，明亮鲜艳的色彩，现代完好的车辆，正常的行人，蓝天白云，阳光明媚，卡通风格，二次元，低分辨率，模糊，噪点过多，水印，文字">末日负面词</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑩ 末日史诗级特写 + 特效库 + 黄金时间轴（3 分钟分镜）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">特写库（按功能）：</b>
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">情绪灵魂特写：
+· 瞳孔震颤：8K眼部特写，瞳孔急剧收缩放大，眼中倒映爆炸火光/倒塌高楼，睫毛沾灰尘与血珠，皮肤干裂（极致恐惧·主角目睹灾难时用）
+· 握拳颤抖：指节发白用力握拳，指甲嵌入掌心渗血，手背青筋暴起（愤怒与决心·主角立誓反击时用）
+· 呼吸白雾：寒冷空气中呼出的白雾，急促而沉重，嘴唇干裂出血（绝望与疲惫·濒临极限时用）
+· 泪水滑落：120fps慢动作，一滴泪水从眼角滑落，划过布满灰尘的脸颊，在下巴处凝结滴落（悲伤与脆弱·失去同伴时用）
+· 逆光剪影：逆光下只有轮廓，头发被风吹动，背景是燃烧的城市（宿命与孤独·站废墟顶端眺望时用）
+
+硬核动作特写：240fps刀刃划过喉咙血珠成弧 / 子弹时间弹头旋转空气波纹 / 拳头击中面部肌肉变形 / 慢动作玻璃碎片四溅 / 混凝土块砸落地面开裂
+环境细节特写：锈迹剥落 / 裂缝中生长的杂草 / 丁达尔光下的漂浮尘埃 / 积水倒映倒塌高楼 / 散落的旧照片与生锈钥匙
+惊悚悬疑特写：墙上影子拉长变形靠近 / 门缝中一只充满恶意的眼睛 / 血迹延伸至走廊尽头 / 收音机滋滋杂音 / 泥地上巨大脚印
+
+特效库：粒子（尘埃/火花/烟雾/火焰/雪花）｜光影（丁达尔/爆炸白光/霓虹故障/月光冷光/闪电）｜破坏（建筑倒塌/地面开裂/冲击波/玻璃破碎/桥梁断裂）｜天气（沙尘暴/倾盆大雨/雷电交加/暴雪/火山灰雨）</div>
+          <div style="margin-top:6px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px"><b style="color:var(--txt)">《余烬》3分钟史诗时间轴（精确到0.5秒）</b>
+第一幕 末世降临 0:00-0:30：航拍俯拍缓慢拉升展示被摧毁的城市（尘埃粒子+丁达尔光，风声-22dB、BGM-26dB）→ 缓慢横摇扫过倒塌摩天楼与废弃汽车（烟雾扩散，雷声-28dB、木板吱呀-24dB）→ 极慢推轨推向渺小人影（脚步声-18dB，BGM渐强）
+第二幕 危机四伏 0:30-1:00：低角度跟拍脚步扫过碎石与骨头（脚步-16dB、碎石-22dB）→ 耳部特写微微一动（所有声音消失1秒后嘶吼-28dB）→ 快速摇镜转身，定格远处晃动黑影（心跳加快-16dB、弦乐-20dB）
+第三幕 生死追逐 1:00-2:00：手持跟拍剧烈晃动狂奔（脚步-14dB、呼吸-18dB）→ 0.5秒快速闪切（咆哮-12dB）→ 240fps滑铲穿车底（摩擦-18dB、撞击-10dB、玻璃-12dB）→ 无人机侧拍倾斜楼板奔跑（楼板吱呀-22dB）→ 120fps纵身跨越深渊（风声-16dB，BGM高潮）
+第四幕 劫后余生 2:00-2:30：落地特写膝盖弯曲双手撑地（落地-16dB）→ 眼部特写眼神由恐惧变坚定（丁达尔光，心跳渐稳）→ 缓慢拉镜起身握紧钢管（钢管摩擦-20dB）
+第五幕 希望余烬 2:30-3:00：逆光剪影立于废墟顶端（交响乐-22dB）→ 无人机拉升到城市全景落日余晖（交响渐弱，远处人类呼喊-28dB）</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="camera" data-v="8K超高清眼部特写，瞳孔急剧收缩放大，眼中倒映出爆炸火光，睫毛上沾着灰尘和血珠，皮肤干裂">瞳孔震颤特写</span>
+            <span class="chip spec-chip" data-f="camera" data-v="指节发白用力握拳，指甲嵌入掌心渗出血迹，手背青筋暴起，沾满灰尘和油污">握拳颤抖特写</span>
+            <span class="chip spec-chip" data-f="camera" data-v="120fps慢动作，一滴泪水从眼角滑落，划过布满灰尘的脸颊，在下巴处凝结滴落">泪水滑落特写</span>
+            <span class="chip spec-chip" data-f="camera" data-v="逆光下只有轮廓，头发被风吹动，背景是燃烧的城市">逆光剪影特写</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="尘埃粒子特效，丁达尔光从云层缝隙射出，密度高">尘埃粒子+丁达尔</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="建筑倒塌特效：高楼从中间断裂缓缓倒塌，扬起巨大的尘土云">建筑倒塌</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="末日沙尘暴：漫天黄沙，能见度极低，狂风呼啸">沙尘暴</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="240fps超慢动作，刀刃划过喉咙特写，血珠飞溅成弧线，刀刃反光，火花粒子特效，冷色调光影，金属碰撞声-14dB，8K超高清，电影级质感">史诗特写公式</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑪ 赛博朋克模块化词库（8 模块 + 成品提示词）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">组合顺序：</b>核心风格 → 场景环境 → 人物主体 → 服装配饰 → 光影色彩 → 特效质感 → 运镜构图 → 负面词
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">① 核心风格（选1-2）：经典赛博朋克 / 银翼杀手2049色调 / 攻壳机动队美学 / 赛博朋克边缘行者 / 生物朋克 / 蒸汽赛博 / 霓虹赛博 / 废土赛博 / 中国风赛博朋克 / 赛博武侠 / 虚幻引擎5 / Octane渲染 / 8K超写实
+② 场景环境（选1-3）：未来巨型都市·空中高速公路·悬浮列车 / 霓虹天际线·全息广告牌海洋 / 雨夜霓虹街道·积水反射·下水道蒸汽 / 狭窄小巷·涂鸦墙·电子垃圾 / 黑客工作室·全息代码流 / 义体诊所 / 霓虹酒吧 / 地下黑市武器库
+③ 人物主体：黑客（兜帽+虚拟键盘+全息代码）/ 赏金猎人（战术装备+伤疤）/ 街头武士（黑风衣+武士刀+义体臂）/ 义体医生（油污白大褂+机械假肢）/ 霓虹舞女（发光纹身）/ 公司特工（黑西装墨镜）/ 机械师 / 流浪者
+④ 义体改造：光学义眼（红/蓝/绿发光）/ 神经接口插头 / 机械颅骨 / 脊柱义体外露发光 / 机械臂（液压·碳纤维·钛合金）/ 可伸缩爪 / 半机械人 / 仿生皮肤
+⑤ 服装配饰：机能风（多口袋工装·战术背心·连帽衫）/ 街头风（oversize卫衣·破洞牛仔）/ 未来主义（发光面料·透明材质）/ 战术装备（防弹衣·护膝·头盔）/ AR眼镜·发光饰品·面罩 / 武士刀·能量剑·电磁枪·激光枪
+⑥ 光影色彩：霓虹蓝+霓虹粉 / 霓虹紫+赛博黄 / 电子绿+深黑 / 强烈明暗对比 / 伦勃朗光 / 雨幕光线折射 / 积水反光 / 丁达尔效应 / 霓虹雾气
+⑦ 特效质感：金属反光·碳纤维·钛合金 / 电路板纹理 / 火花·电流·电弧·全息投影·数据粒子 / 胶片颗粒·色差色散·镜头光晕·暗角
+⑧ 运镜构图：特写·中景·全景·远景 / 低角度仰拍·高角度俯拍·倾斜角度 / 推·拉·跟·摇·移·希区柯克变焦 / 三分法·对称·引导线·框架·对角线</div>
+          <div style="margin-top:6px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px"><b style="color:var(--txt)">成品示例（直接复制）</b>
+1. 亚裔少年赛博武士：8K超高清，虚幻引擎5，电影级质感，新赛博朋克，雨夜未来都市老街，潮湿路面反光霓虹灯光，空中悬浮全息招牌，一位清冷帅气亚裔少年，短发精致五官，半机械义体右眼蓝光发光，脖颈机械接口，黑色机能风衣+束脚工装裤，腰间佩发光能量武士刀，站姿冷峻，逆光轮廓光，霓虹青蓝+玫红撞色，丁达尔光雾，蒸汽氤氲，细节拉满，胶片颗粒，景深虚化，全身全景
+2. 女街头黑客：8K，超写实，赛博朋克边缘行者风格，深夜狭窄霓虹小巷，墙面涂鸦斑驳，下水道冒白色蒸汽，全息代码漂浮环绕，年轻亚裔女生，兜帽遮发，AR发光护目镜，侧脸冷艳，露机械锁骨接口，紧身机能卫衣，破洞工装，指尖触碰虚拟全息屏幕，蓝紫色数据流缠绕，雨夜微光，高对比暗调，电影分镜感，中景半身
+3. 中国风赛博女刺客：8K电影级，国风赛博朋克，雨夜古风未来融合都市，飞檐建筑叠加霓虹巨屏，灯笼与霓虹招牌交织，清冷古风女子，黑发束发，眉眼精致，半机械义体肩甲，改良赛博旗袍，暗纹发光刺绣，手持短刃，立于楼台边缘，烟雨薄雾，蓝紫青冷色调，侧光氛围感，全景构图</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="style" data-v="经典赛博朋克，银翼杀手2049色调，虚幻引擎5，Octane渲染，8K超写实，电影级质感">赛博核心风格</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="雨夜霓虹街道，积水路面反射霓虹灯，蒸汽从下水道口冒出，霓虹蓝+霓虹粉光影，强烈明暗对比，丁达尔光雾">赛博光影</span>
+            <span class="chip spec-chip" data-f="subject" data-v="年轻亚裔女黑客，黑色短发，戴着兜帽和AR眼镜，蓝色发光光学义眼，颈部有神经接口，穿着黑色机能连帽衫和多口袋工装裤，战术手套">赛博黑客</span>
+            <span class="chip spec-chip" data-f="subject" data-v="中年男性赛博武士，脸上有一道伤疤，红色发光光学义眼，机械右臂，穿着黑色长风衣，腰间别着武士刀，刀鞘上有霓虹灯装饰">赛博武士</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="火花，电流，电弧，全息投影，数据粒子，代码流，镜头光晕，色散，暗角，胶片颗粒">赛博特效</span>
+            <span class="chip spec-chip" data-f="camera" data-v="低角度仰拍，浅景深F1.8，三分法构图，斯坦尼康丝滑跟拍">赛博运镜构图</span>
+            <span class="chip spec-chip" data-f="negative" data-v="模糊，低分辨率，像素化，变形，扭曲，多余的肢体，多余的手指，丑陋的脸，畸形的脸，错误的透视，平淡的光影，过曝，欠曝，色彩暗淡，没有细节，纹理模糊，水印，文字，签名">赛博负面词</span>
+            <span class="chip spec-chip" data-f="negative" data-v="古风，古装，武侠，修仙，法术，剑气，古代建筑，传统运镜，明亮光线，卡通风格，二次元，穿模，动作僵硬，现代普通城市，没有霓虹，没有全息，干净整洁">赛博避坑负面</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑫ 一镜到底 15 秒模板（精确到 0.1 秒 · 10 条剧情变体）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--txt)">核心设计原则：</b>每 0.5 秒一个动作变化，每 1 秒一个运镜微调；运镜「跟→绕→推→升→俯」无缝衔接模拟 5 次切镜；全程第一人称代入感，惊悚点卡在第 3 秒和第 8 秒；动作符合人体力学避免肢体崩坏。
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px;margin-top:6px">总提示词开头必加：15秒一镜到底，无剪辑，连续运镜，电影级手持跟拍，轻微自然晃动
+
+原版（索道飞梭·野性少年）7段结构：
+0-2秒：广角紧贴倾斜向下的巨大原木滑道，迎着锯末与狂风极速后拉；少年迎着镜头狂奔，身后「神木雪崩」如翻滚的死亡高墙碾压而来
+2-4.5秒：失控铁刺从木板下轰然弹起，镜头极速左移侧拍；少年凌空蜷身翻滚擦过锋芒，落地前滚避开崩飞木片
+4-6.5秒：镜头随翻滚拉高越过头顶变为后俯跟拍；前方滑道断裂只剩两根麻绳索道，少年如野猫横向跃出
+6.5-9秒：镜头切回正前方特写；反手抽出「千机铁木飞梭」，狠狠砸在索道麻绳上，双脚踩稳生铁扣环
+9-11.5秒：微距特写推向发条核心；踩动机枢，火石摩擦引燃黑火药，狂暴气浪喷发，滑轮摩擦出长串火星
+11.5-13.5秒：电影级大特写，180°极速动态环绕；乱发狂舞，背景峡谷与崩解滑道飞速倒退
+13.5-15秒：镜头正前方猛然刹车悬停；冲上废弃石台跳板，化作灰色残影跃入对面竹海，第15秒整切黑</div>
+          <div style="margin-top:6px;background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">10 条同结构剧情变体（只换剧情/场景，保留镜头语法）：
+1 水下赛博逃亡：霓虹管道崩裂 → 激光栅栏 → 能量缆索 → 水下推进滑板 → 离子流 → 深海废墟 → 水下都市
+2 机甲都市追逐：高架赛道 → 电磁障碍 → 悬链轨道 → 飞行滑板 → 火焰喷射 → 城市夜景 → 高楼阴影
+3 沙漠机甲狂飙：沙瀑滑道 → 沙刃突刺 → 悬空钢索 → 滑翔滑板 → 引擎喷火 → 黄沙漫天 → 峡谷
+4 霓虹雨夜逃亡：倾斜天台 → 玻璃天窗碎裂 → 楼间索道 → 霓虹滑板 → 电光推进 → 雨夜都市 → 街巷
+5 古武机甲突围：古殿石阶 → 机括尖刃 → 殿宇悬链 → 古武飞梭 → 机关爆发 → 古建飞檐 → 竹林
+6 浮空城坠落：断裂跑道 → 能量屏障 → 空中轨道 → 悬浮滑板 → 反重力引擎 → 云层天空 → 下一层浮空城
+7 冰雪机甲竞速：冰瀑滑道 → 冰刺弹出 → 冰原悬索 → 寒冰滑板 → 低温引擎 → 雪山 → 冰谷
+8 火山熔岩逃生：倾斜岩道 → 岩刺突刺 → 悬空铁链 → 耐热滑板 → 隔热引擎 → 火山烟云 → 火山洞穴
+9 星际战舰突围：战舰甲板 → 防空炮口 → 外部索道 → 星际滑板 → 等离子引擎 → 星空 → 舰载机库
+10 暗黑武侠追击：黑木崖栈道 → 暗箭射出 → 崖间铁索 → 玄铁飞梭 → 机括发力 → 暗夜群山 → 密林</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="rhythm" data-v="15秒一镜到底，无剪辑，连续运镜，电影级手持跟拍，轻微自然晃动">一镜到底开头</span>
+            <span class="chip spec-chip" data-f="rhythm" data-v="0-2秒极速向前 → 2-4.5秒侧移翻滚 → 4-6.5秒拉高俯拍 → 6.5-9秒正面特写 → 9-11.5秒微距核心 → 11.5-13.5秒180°环绕 → 13.5-15秒悬停切黑">15秒七段骨架</span>
+            <span class="chip spec-chip" data-f="negative" data-v="剪辑，硬切，跳切，镜头切换，静止镜头，人物穿模，四肢扭曲，动作僵硬，卡通风格，二次元">一镜到底负面词</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑬ 人物动作与转场变身（微动作 / 运镜变身 / 特效转场）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px">后退转身：首帧人物缓慢转身调整站姿，镜头随转身同步向侧后方轻微后退，后退速度匹配转身步频，保持人物在画面黄金比例位；转身完成前镜头快速推近聚焦脸部，再缓慢后退拉远回正，平稳转变为尾帧
+运镜变身：首帧人物自然走动，镜头与人物保持平行横移，横移速度匹配步行步频，轻微跟随脚步上下起伏；人物抬手打招呼时镜头快速拉远，再快速回正时转变为尾帧，衔接自然
+环绕变身：首帧人物缓慢转身，镜头先静止对焦全身，随转身节奏逐步开启轻微环绕（仅半圈），贴合身体转动轨迹；转身抬手扶衣时快速推近聚焦脸部，手放下后缓慢停止环绕并拉远回正
+横移变身：镜头随转身动作同步水平横移，轨迹贴合转身弧线，保持人物在画面中心；转身至半程时快速变焦推近聚焦脸部，再缓慢变焦拉远回正
+泼水变装：人物自然向前走，大量透明水从左侧迅速泼来，水花飞溅后消失；水流消退时人物服装变为白色宽松衬衫与牛仔短裤，呈现湿衣效果，头发/脸部/衣领有晶莹水珠，摄像机向后匀速拉远至全身
+花瓣消散：主体人物不动，变成无数沙粒大小的花瓣粒子消散（深红色，蔓延到全身周围后向右飘散），人物消失后粒子随风飘走逐渐变为红色花瓣，电影特效风格
+基础微动作：面对镜头缓慢眨眼，面露微笑 / 面对镜头挥挥手，面带微笑 / 优雅地戴上眼镜</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="camera" data-v="首帧人物缓慢转身，镜头随转身同步向侧后方轻微后退，速度匹配转身步频，保持人物在画面黄金比例位">后退转身</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头与人物保持平行横移，速度匹配步行步频，轻微跟随脚步上下起伏，抬手时快速拉远再回正">运镜变身</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头先静止对焦全身，随转身节奏逐步开启轻微半圈环绕，贴合身体转动轨迹，后缓慢停止环绕拉远回正">环绕变身</span>
+            <span class="chip spec-chip" data-f="camera" data-v="镜头随转身同步水平横移，轨迹贴合转身弧线，半程时快速变焦推近聚焦脸部，再缓慢拉远回正">横移变身</span>
+            <span class="chip spec-chip" data-f="action" data-v="大量透明水从左侧迅速向人物泼去，水花飞溅后消失，水流消退时人物丝滑变身为尾帧人物，全程动作不停止">泼水变装</span>
+            <span class="chip spec-chip" data-f="action" data-v="主体人物不动，变成无数沙粒大小的花瓣粒子消散，粒子蔓延全身周围后向右飘散，人物消失后化为红色花瓣随风飘走，电影特效风格">花瓣消散</span>
+            <span class="chip spec-chip" data-f="action" data-v="面对镜头，缓慢眨眼，面露微笑">眨眼</span>
+            <span class="chip spec-chip" data-f="action" data-v="面对镜头挥挥手，面带微笑">挥手</span>
+            <span class="chip spec-chip" data-f="action" data-v="优雅地戴上眼镜">戴眼镜</span>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>⑭ 顶配基底（全题材通用 · 含国风仙侠 / 赛博武侠人像）</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">
+          <div style="background:#0a0c12;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11.5px"><b style="color:var(--txt)">顶配基底（正向主词，主角可替换）</b>
+8K超高清，院线电影级画质，35mm电影胶片质感，RAW原生色彩，杜比视界HDR，极致细节纹理，物理全局光照，真人写实质感，无畸变无模糊，画面层次拉满，专业影视级调色，暗部纯净无噪点，亮部通透不死白；主角【28岁男性/30岁女性】，身形匀称，面部轮廓清晰，眼神灵动有戏，妆容自然清透，穿搭贴合题材，姿态自然舒展，面部光影过渡自然，毛发根根清晰，皮肤通透有肌理感，与背景融合自然不突兀
+
+<b style="color:var(--txt)">精准光影数值</b>
+侧逆光45°入射角（照亮轮廓），硬光35%+柔化漫射光65%，伦勃朗光影构图（暗部1/3、亮部2/3），明暗对比度1.3:1，色温5200K冷调基底，面部局部暖光补色饱和度18%，轮廓光亮度22%，环境漫反射强度0.7，眼部补光强度15%
+
+<b style="color:var(--txt)">镜头运动精准参数</b>
+焦段28-50mm黄金影视焦段（28mm全身+环境，50mm半身特写）；运镜0.3s慢推+0.1°微环绕平移，60fps丝滑；景深F1.8浅景深虚化；机位平视标准机位，特写轻微低角度12°；主体始终在画面黄金分割点
+
+<b style="color:var(--txt)">细节质感强化</b>
+肌肤真实物理纹理（毛孔、细纹清晰可见，不磨皮过度），毛发根根分明，衣物纹理清晰（布料褶皱自然），空气微尘氛围感，自然空气透视，影视级粒子氛围感，动态模糊自然（运镜时主体清晰、背景轻微模糊），肢体动态流畅自然
+
+<b style="color:var(--txt)">国风仙侠 / 赛博武侠人像（可直接替换使用）</b>
+· 少年仙侠：电影级写实人像，东方古风仙侠少年，清冷气质，黑中带银白挑染长发，高马尾束发，佩戴精致银质蓝玉发冠，五官稚嫩清秀，眼神澄澈疏离，皮肤白皙，身着白色暗纹古风长袍，领口佩戴多层蓝玉银饰项链，整体色调清冷冰白，背景为朦胧的古风山水云雾，光影柔和高级，8K超高清，写实渲染，无卡通感，无动漫感
+· 成年仙侠：冷峻贵公子气质，黑中带银白挑染高马尾，银质蓝玉发冠，五官清隽锋利，眼神锐利清冷，深蓝色镶银边古风仙侠长袍（暗纹刺绣），多层蓝玉珍珠银饰项链，耳坠为银玉流苏，深邃藏蓝与冰蓝，背景朦胧古风建筑，光影高级有层次
+· 魔族：古风俊美魔族男子，高马尾配暗黑犄角，绣暗纹玄色汉服，紫银色流光火焰在肩颈萦绕；或全身镜头倚在石棺上单手撑头，身旁缠绷带黑猫，幽绿鬼火摇曳，暖调烛火与冷调紫焰强烈对比，烟雾朦胧
+· 赛博武侠：半机械剑仙，右眼机械义眼（瞳孔流动蓝色数据流光），白色/深蓝色古风仙侠长袍，右臂流线型银白机械义体，关节处淡蓝色灵能电弧微光，背景悬浮古城与数据流残影，国风与赛博朋克融合
+· 国风仙侠美学通用：电影级打光，伦勃朗光效，面部光影细腻，皮肤质感真实，衣料纹理清晰，银饰与玉石有金属和宝石的真实反光，发丝根根分明，背景虚化突出人物，画面干净通透，冷色调调色，高细节高质感，真实电影剧照风格</div>
+          <div style="margin-top:8px">
+            <span class="chip spec-chip" data-f="style" data-v="8K超高清，院线电影级画质，35mm电影胶片质感，RAW原生色彩，杜比视界HDR，极致细节纹理，物理全局光照，真人写实质感，专业影视级调色">顶配基底画质</span>
+            <span class="chip spec-chip" data-f="lighting" data-v="侧逆光45°入射角，硬光占比35%+柔化漫射光65%，伦勃朗光影构图，明暗对比度1.3:1，色温5200K冷调基底，轮廓光亮度22%，眼部补光强度15%">精准光影数值</span>
+            <span class="chip spec-chip" data-f="camera" data-v="28-50mm黄金影视焦段，0.3s慢推运镜+0.1°微环绕平移，60fps，F1.8浅景深，平视标准机位，主体位于黄金分割点">精准镜头参数</span>
+            <span class="chip spec-chip" data-f="subject" data-v="肌肤真实物理纹理（毛孔、细纹清晰可见，不磨皮过度），毛发根根分明，衣物纹理清晰，空气微尘氛围感，影视级粒子氛围感">细节质感强化</span>
+            <span class="chip spec-chip" data-f="subject" data-v="东方古风仙侠少年，清冷气质，黑中带银白挑染长发，高马尾束发，银质蓝玉发冠，白色暗纹古风长袍，多层蓝玉银饰项链，冷冰白色调，背景朦胧古风山水云雾">仙侠少年</span>
+            <span class="chip spec-chip" data-f="subject" data-v="古风俊美魔族男子，高马尾配暗黑犄角，绣暗纹玄色汉服，紫银色流光火焰在肩颈萦绕，冷冽眼神，淡蓝色朦胧背景">魔族男子</span>
+            <span class="chip spec-chip" data-f="subject" data-v="半机械剑仙，右眼机械义眼（瞳孔流动蓝色数据流光），白色深蓝古风仙侠长袍，右臂流线型银白机械义体，关节处淡蓝色灵能电弧微光，背景悬浮古城与数据流残影">赛博武侠</span>
+            <span class="chip spec-chip" data-f="style" data-v="国风仙侠美学，电影级打光，伦勃朗光效，面部光影细腻，皮肤质感真实，衣料纹理清晰，银饰与玉石真实反光，发丝根根分明，背景虚化突出人物，冷色调调色，真实电影剧照风格">仙侠美学</span>
+            <span class="chip spec-chip" data-f="negative" data-v="扭曲五官，面部变形，肢体残缺，多余手脚，模糊糊脸，马赛克，低画质，卡通动漫，二次元，涂鸦手绘，文字水印，广告logo，畸形构图，比例失调，光影杂乱，过度美颜，塑料质感，像素颗粒，画面抖动，色彩刺眼，面部过曝欠曝，毛发粘连，穿搭违和，姿态僵硬">顶配负面屏蔽词</span>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+const EN_NEG = "blurry, lowres, deformed, distorted, extra limbs, missing limbs, bad hands, bad fingers, mutated face, text, watermark, logo, signature, inconsistent style, low quality, overexposed, flickering, jitter, clipping, floating object";
+const DEFAULT_NEG = ["模糊","变形","多余肢体","缺失肢体","手指异常","面部畸变","字幕","水印","风格跳变","低质量","过曝","死黑","穿模","抽帧"];
+
+const PRESETS = {
+  guofeng:{style:"国风漫剧、厚涂笔触、电影感、细节丰富、统一美术风格"},
+  houqi:{style:"厚涂、日式动漫、赛璐璐、电影感、统一美术风格"},
+  render3d:{style:"3D 渲染、虚幻引擎风格、光线追踪、电影级调色、8K"},
+  xieshi:{style:"写实、胶片感、电影级调色、细节丰富、高质感"},
+  moji:{style:"末日废墟城市，断壁残垣崩塌高楼，锈蚀残破建筑，荒草丛生藤蔓缠绕，废弃破碎街道，灰蒙蒙沙尘弥漫，低饱和冷色调，阴郁压抑末世氛围，电影级光影，8K 超高清，极致细节，写实质感，广角全景，死寂无人空城",
+       negative:"漂浮的物体，反重力，人物穿模，四肢扭曲，动作僵硬，表情崩坏，多余的手指，畸形的身体，干净整洁的建筑，没有锈迹，没有灰尘，明亮鲜艳的色彩，现代完好的车辆，正常的行人，蓝天白云，阳光明媚，卡通风格，二次元，低分辨率，模糊，噪点过多，水印，文字"}
+};
+
+const $ = id => document.getElementById(id);
+function val(id){return ($(id).value||"").trim();}
+const MAX_IMG = 10;
+
+function assemble(d, vertical=true){
+  const frames = d.frames ? d.frames : "无强制首尾帧约束，以参考图为首帧。";
+  const negList = d.negative ? d.negative.split(/[，,、]/).map(s=>s.trim()).filter(Boolean) : DEFAULT_NEG;
+  const negStr = negList.join("、");
+  let p = "";
+  p += `（主体锁定）${d.subject}\n`;
+  p += `（动作描述）${d.action}\n`;
+  p += `（镜头运动）${d.camera}\n`;
+  p += `（景别/构图）${d.shot}\n`;
+  p += `（光影氛围）${d.lighting}\n`;
+  p += `（风格一致性）${d.style}\n`;
+  p += `（节奏与时长）${d.rhythm}\n`;
+  p += `（空间关系）${d.spatial}\n`;
+  p += `（首尾帧约束）${frames}\n`;
+  p += `（负面提示词）排除${negStr}。`;
+  if(vertical) p += "\n[竖屏附加逻辑已应用：人物不贴边、动作纵向优先、开篇强钩子、中心安全区构图。]";
+  return {prompt:p, negStr, negEn:EN_NEG};
+}
+
+// wrap with plot + images
+function assembleExt(d, plot, images, vertical=true){
+  const r = assemble(d, vertical);
+  let p = r.prompt;
+  if(plot) p = `【剧情】${plot}\n\n` + p;
+  if(images && images.length){
+    const lines = ["【分镜图上传】"];
+    images.forEach(im=>lines.push(`  - （${im.role}）${im.cap}`+(im.file?`（文件：${im.file}）`:"")));
+    p += "\n" + lines.join("\n");
+  }
+  return {prompt:p, negEn:r.negEn};
+}
+
+function verticalChecks(d){
+  const checks=[];
+  const sub=d.subject||"";
+  checks.push({ok:/居中|中下|中上|中心|三分/.test(sub),msg:"主体锁定需注明画面位置（居中/中下/三分线），避免贴边"});
+  checks.push({ok:/秒/.test(d.rhythm||""),msg:"节奏与时长建议标注秒数（竖屏单镜 3–6 秒）"});
+  checks.push({ok:/留白/.test(d.shot||"")||/特写/.test(d.shot||""),msg:"景别/构图建议写明头顶留白（10–15%）"});
+  return checks;
+}
+
+// ---- image editor ----
+function readImages(container){
+  const out=[];
+  container.querySelectorAll(".img-row").forEach(row=>{
+    const role=row.querySelector(".ir_role").value;
+    const file=row.querySelector(".ir_file").dataset.file||"";
+    const cap=row.querySelector(".ir_cap").value.trim();
+    out.push({role,file,cap});
+  });
+  return out;
+}
+function addImageRow(container, updater, max=MAX_IMG){
+  if(container.querySelectorAll(".img-row").length>=max) return;
+  const row=document.createElement("div");
+  row.className="img-row";
+  row.innerHTML=`
+    <select class="ir_role"><option>首帧图</option><option>尾帧图</option><option>参考图</option></select>
+    <input type="file" class="ir_file" />
+    <input class="ir_cap" placeholder="图注/描述，如：门前景，阿绾静立" />
+    <button class="ir_del">×</button>`;
+  const fi=row.querySelector(".ir_file");
+  fi.addEventListener("change",e=>{ fi.dataset.file = e.target.files[0]?e.target.files[0].name:""; });
+  row.querySelector(".ir_del").addEventListener("click",()=>{ row.remove(); if(updater)updater(); });
+  container.appendChild(row);
+  if(updater)updater();
+}
+function setupImageEditor(containerId, btnId, cntId){
+  const c=$(containerId), btn=$(btnId), cnt=$(cntId);
+  const upd=()=>{ cnt.textContent=c.querySelectorAll(".img-row").length+"/"+MAX_IMG;
+    btn.disabled=c.querySelectorAll(".img-row").length>=MAX_IMG; };
+  btn.addEventListener("click",()=>addImageRow(c,upd));
+}
+
+// ---- single ----
+function renderSingle(){
+  const d={
+    subject:val("s_subject"), action:val("s_action"), camera:val("s_camera"),
+    shot:val("s_shot"), lighting:val("s_lighting"), style:val("s_style"),
+    rhythm:val("s_rhythm"), spatial:val("s_spatial"), frames:val("s_frames"),
+    negative:val("s_negative")
+  };
+  const plot=val("s_plot");
+  const imgs=readImages($("s_imgs"));
+  const {prompt}=assembleExt(d,plot,imgs);
+  const ref=val("s_ref");
+  $("s_preview").textContent=(ref?("参考："+ref+"\n\n"):"")+prompt;
+  const box=$("s_checks"); box.innerHTML="";
+  verticalChecks(d).forEach(c=>{
+    const el=document.createElement("div");
+    el.className="check"+(c.ok?"":" bad");
+    el.innerHTML=`<span class="ic">${c.ok?"✓":"⚠"}</span><span>${c.msg}</span>`;
+    box.appendChild(el);
+  });
+  if(imgs.length>MAX_IMG){const w=document.createElement("div");w.className="check bad";
+    w.innerHTML=`<span class="ic">⚠</span><span>分镜图 ${imgs.length} 张，超过上限 ${MAX_IMG} 张，请拆分。</span>`;box.appendChild(w);}
+}
+
+// ---- sequence ----
+let shotCount=0;
+function addShot(prefill){
+  shotCount++;
+  const id="shot"+shotCount;
+  const wrap=document.createElement("div");
+  wrap.className="shot"; wrap.id=id;
+  wrap.innerHTML=`
+    <div class="head"><b>镜 ${shotCount}</b><button class="del" data-target="${id}">删除</button></div>
+    <div class="field"><label>主体锁定</label><textarea class="f_subject" rows="2"></textarea></div>
+    <div class="field"><label>动作描述</label><textarea class="f_action" rows="2"></textarea></div>
+    <div class="field"><label>镜头运动</label><textarea class="f_camera" rows="2"></textarea></div>
+    <div class="field"><label>景别/构图</label><textarea class="f_shot" rows="2"></textarea></div>
+    <div class="field"><label>光影氛围</label><textarea class="f_lighting" rows="2"></textarea></div>
+    <div class="field"><label>风格一致性</label><textarea class="f_style" rows="2"></textarea></div>
+    <div class="field"><label>节奏与时长</label><textarea class="f_rhythm" rows="2"></textarea></div>
+    <div class="field"><label>空间关系</label><textarea class="f_spatial" rows="2"></textarea></div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>起始帧</label><textarea class="f_start" rows="2"></textarea></div>
+      <div class="field" style="flex:1"><label>结束帧</label><textarea class="f_end" rows="2"></textarea></div>
+    </div>
+    <div class="field"><label>负面提示词（留空用默认）</label><textarea class="f_negative" rows="1"></textarea></div>
+    <div class="img-head"><span>分镜图（最多 10 张）</span><span class="cnt">0/${MAX_IMG}</span></div>
+    <div class="f_imgs"></div>
+    <button class="btn ghost add f_addimg" style="font-size:12px;padding:6px 12px">＋ 添加分镜图</button>`;
+  $("shots").appendChild(wrap);
+  if(prefill){ wrap.querySelector(".f_subject").value=prefill.subject||"";
+    wrap.querySelector(".f_style").value=prefill.style||""; }
+  const c=wrap.querySelector(".f_imgs"), cnt=wrap.querySelector(".cnt");
+  const upd=()=>{ cnt.textContent=c.querySelectorAll(".img-row").length+"/"+MAX_IMG;
+    wrap.querySelector(".f_addimg").disabled=c.querySelectorAll(".img-row").length>=MAX_IMG; };
+  wrap.querySelector(".f_addimg").addEventListener("click",()=>addImageRow(c,upd));
+  wrap.querySelectorAll("textarea").forEach(t=>t.addEventListener("input",renderSeq));
+  wrap.querySelector(".del").addEventListener("click",e=>{ $(e.target.dataset.target).remove(); renderSeq(); });
+  renderSeq();
+}
+function readShots(){
+  const list=[];
+  document.querySelectorAll(".shot").forEach(s=>{
+    list.push({
+      subject:s.querySelector(".f_subject").value.trim(),
+      action:s.querySelector(".f_action").value.trim(),
+      camera:s.querySelector(".f_camera").value.trim(),
+      shot:s.querySelector(".f_shot").value.trim(),
+      lighting:s.querySelector(".f_lighting").value.trim(),
+      style:s.querySelector(".f_style").value.trim(),
+      rhythm:s.querySelector(".f_rhythm").value.trim(),
+      spatial:s.querySelector(".f_spatial").value.trim(),
+      start:s.querySelector(".f_start").value.trim(),
+      end:s.querySelector(".f_end").value.trim(),
+      negative:s.querySelector(".f_negative").value.trim(),
+      images:readImages(s.querySelector(".f_imgs"))
+    });
+  });
+  return list;
+}
+function renderSeq(){
+  const shots=readShots();
+  const plot=val("seq_plot");
+  let out="";
+  if(plot) out+="【剧情】"+plot+"\n\n";
+  shots.forEach((d,i)=>{
+    const prevEnd=i>0?shots[i-1].end:"";
+    let frames;
+    if(d.start&&d.end) frames=`起始帧：${d.start}；结束帧：${d.end}`;
+    else if(prevEnd) frames=`起始帧承接上一镜结束（${prevEnd}）`+(d.end?`；结束帧：${d.end}`:"");
+    else frames="无强制首尾帧约束，以参考图为首帧。";
+    const r=assemble({...d,frames},true);
+    let p=r.prompt;
+    if(d.images&&d.images.length){
+      const lines=["【分镜图上传】"];
+      d.images.forEach(im=>lines.push(`  - （${im.role}）${im.cap}`+(im.file?`（文件：${im.file}）`:"")));
+      p+="\n"+lines.join("\n");
+    }
+    out+=`=== 镜 ${i+1} ===\n${p}\n\n`;
+  });
+  $("seq_preview").textContent=out.trim();
+}
+
+// ---- wiring ----
+["s_subject","s_action","s_camera","s_shot","s_lighting","s_style","s_rhythm","s_spatial","s_frames","s_negative","s_ref","s_plot"]
+  .forEach(id=>$(id).addEventListener("input",renderSingle));
+document.querySelectorAll(".preset").forEach(p=>{
+  p.addEventListener("click",()=>{ const pre=PRESETS[p.dataset.preset];
+    if(pre){ $("s_style").value=pre.style; if(pre.negative && !val("s_negative")) $("s_negative").value=pre.negative; }
+    renderSingle(); });
+});
+$("refToggle").addEventListener("click",()=>{ const b=$("refBox"); b.style.display=b.style.display==="none"?"block":"none"; });
+$("s_copy").addEventListener("click",()=>{ renderSingle(); navigator.clipboard.writeText($("s_preview").textContent).then(()=>alert("已复制提示词")); });
+$("s_copyEn").addEventListener("click",()=>{ navigator.clipboard.writeText(EN_NEG).then(()=>alert("已复制英文负面词")); });
+setupImageEditor("s_imgs","s_addImg","s_imgcnt");
+
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    const which=t.dataset.tab;
+    $("single").style.display=which==="single"?"block":"none";
+    $("seq").style.display=which==="seq"?"block":"none";
+    $("fight").style.display=which==="fight"?"block":"none";
+    $("lab").style.display=which==="lab"?"block":"none";
+    $("plot").style.display=which==="plot"?"block":"none";
+    $("spec").style.display=which==="spec"?"block":"none";
+  });
+});
+$("addShot").addEventListener("click",()=>addShot());
+$("seq_copy").addEventListener("click",()=>{ navigator.clipboard.writeText($("seq_preview").textContent).then(()=>alert("已复制全部提示词")); });
+
+// ---- 打斗版生成器 ----
+const FIGHT_NEG="模糊，变形，肢体扭曲，手部崩坏，角色换脸，场景突变，画面闪烁，低分辨率，卡通二次元，多余肢体，文字水印";
+function renderFight(){
+  const name=val("f_name")||"未命名段落";
+  const dur=parseInt(val("f_dur"),10)||10;
+  const q=val("f_quality")||"10秒极致3D动作大片";
+  const art=val("f_art")||"黑神话写实风";
+  const scene=val("f_scene")||"【场景环境，保持前后切片一致】";
+  const a=val("f_a")||"【人物A：外观+装备+姿态】";
+  const b=val("f_b")||"【人物B：外观+装备+姿态】";
+  const line=val("f_line");
+  const s2=Math.max(4,Math.round(dur*0.6));
+  const audio1=line?`环境音 + 台词：「${line}」`:"环境音，无对白";
+  const out=
+`【${name}｜总时长 ${dur}s】
+基础风格锚定词：${q}，${art}，电影级光影，真实材质，强动态镜头，史诗战斗氛围，连贯动作，高细节，物理真实，强打击感
+
+【0-3s 开场对峙】
+镜头：${val("f_cam1")||"大远景"}
+场景：${scene}
+人物A：${a}
+人物B：${b}
+动作：${val("f_act1")||"【开场对峙：双方试探，人物B挑衅，人物A蓄势】"}
+特效：${val("f_fx1")||"环境特效、光效、粒子"}
+音频：${audio1}
+
+【3-${s2}s 中段交手】
+镜头：${val("f_cam2")||"极速动态追踪"}
+场景：场景延续，${scene}
+人物A：${a}
+人物B：${b}
+动作：${val("f_act2")||"【中段交手：高频对砍，攻防转换，火花四溅】"}
+特效：${val("f_fx2")||"战斗特效：刀光残影、火花、冲击波"}
+音频：纯战斗音效，无对白
+
+【${s2}-${dur}s 高潮绝杀】
+镜头：${val("f_cam3")||"环绕仰拍"}
+场景：场景延续，${scene}
+人物A：${a}
+人物B：${b}
+动作：${val("f_act3")||"【绝杀：蓄力大招，一击定胜负】"}
+特效：${val("f_fx3")||"大招特效：冻结、碎裂、光点"}
+音频：音爆 + 低频轰鸣 + 碎裂音效
+
+负面提示词：${FIGHT_NEG}`;
+  $("f_preview").textContent=out;
+}
+["f_name","f_dur","f_quality","f_art","f_scene","f_a","f_b","f_line",
+ "f_cam1","f_act1","f_fx1","f_cam2","f_act2","f_fx2","f_cam3","f_act3","f_fx3"]
+ .forEach(id=>$(id).addEventListener("input",renderFight));
+$("f_copy").addEventListener("click",()=>{ navigator.clipboard.writeText($("f_preview").textContent).then(()=>alert("已复制打斗提示词")); });
+renderFight();
+
+// ---- AI 联网生成 ----
+function aiConf(){
+  return {base:(localStorage.getItem("ai_base")||"http://localhost:11434/v1").replace(/\/+$/,""),
+          key:localStorage.getItem("ai_key")||"",
+          model:localStorage.getItem("ai_model")||"gemma4:26b"};
+}
+function saveAiConf(){
+  localStorage.setItem("ai_base",$("ai_base").value.trim());
+  localStorage.setItem("ai_key",$("ai_key").value.trim());
+  localStorage.setItem("ai_model",$("ai_model").value.trim());
+}
+const AI_FMTS={
+  single10:{json:true,sys:"你是顶尖的 AI 视频分镜提示词专家，熟悉 10 要素结构（主体锁定、动作描述、镜头运动、景别构图、光影氛围、风格一致性、节奏时长、空间关系、首尾帧约束、负面提示词）。请根据用户给的一句话场景，输出 JSON，键为：subject,action,camera,shot,lighting,style,rhythm,spatial,frames,negative,plot。负面词用中文逗号分隔。只输出 JSON，不要解释。"},
+  fight:{json:true,sys:"你是顶尖的 AI 视频分镜提示词专家，熟悉「打斗版切片提示词」结构（基础风格锚定词 + 三切片：0-3s开场对峙 / 中段交手 / 高潮绝杀，每片含镜头、场景、人物A、人物B、动作、特效、音频；末尾负面提示词）。请按用户给的一句话场景，输出 JSON，键为：name,dur(数字),quality,art,scene,a,b,line,cam1,act1,fx1,cam2,act2,fx2,cam3,act3,fx3。其中 line 为人物A与人物B的简短对白/台词（带语气、冲突与情绪，推动对峙或高潮，禁止留空或写「无」除非确为纯默片）；a、b 为双方身份名号。只输出 JSON，不要解释。"},
+  basicset:{json:false,sys:"你是顶尖的 AI 视频分镜提示词专家，熟悉「基础设定+画面内容」双层模板：先写【基础设定】（锁定角色外观/服装/坐骑/场景/光线/破坏状态/表情机制）+【氛围与画质】，再写【画面内容】（多个片段，每片段含景别/构图/运镜/画面内容），末附负面提示词。请直接输出完整提示词纯文本，不要 JSON，不要解释，不要加 markdown 围栏。"},
+  seedance:{json:false,sys:"你是顶尖的 AI 视频分镜提示词专家，熟悉 Seedance 时间码分镜：每镜格式为「镜头 0N【起始s-结束s】景别 / 运镜」+「画面视图：…」+「声音设计：…」，多镜时间码递进。请直接输出完整提示词纯文本，不要 JSON，不要解释，不要加 markdown 围栏。"},
+  innovate:{json:true,sys:"你是顶尖的运镜与视觉特效创新师。用户会给你若干『运镜资源』和『视觉特效资源』作为素材，以及一句话基础场景。请基于这些素材，跨界杂交出一种『全新的运镜+视觉特效组合』，它不应是素材的简单拼接，而要产生 1+1>2 的新效果（例如把A的运镜轨迹与B的特效物理耦合，在某秒触发连锁反应）。输出 JSON，键为：name(给新组合起个酷名),camera(新运镜描述，含时间码与角度),vfx(新特效描述，含触发节点与物理),fusion(一句话说明耦合机制),prompt(可直接使用的完整提示词片段，中文)。只输出 JSON，不要解释。"},
+  plotshot:{json:false,sys:"你是顶尖的 AI 视频分镜提示词专家。用户会给你【整体剧情文案】、一个【本镜分镜剧情】（单镜剧情/动作描述）、【本镜序号】，以及可选的【分镜图/首帧图】（若已附则必须结合画面中的真实角色与场景，不臆造图中没有的元素）。还可能附带【上一镜】信息（剧情+已生成提示词）。请只针对本镜，输出一段【专业级、超详细、可直接用于AI视频生成的提示词】，严格遵循以下 10 要素结构，但每一要素都必须展开成信息密度极高的段落（不要惜字如金，整体不少于400字）：\n1.主体锁定：（详细描写主角与配角的外貌、服装材质纹理、武器/装备型号与发光色、表情与肢体语言、在画面中的位置与朝向；本条必须最先写出且绝不可省略——若用户文案未明确命名角色，须主动设定一名具体主角并锁定其外貌/服装/装备，禁止留空或写「无」）\n2.动作描述：（必须写成一条【物理连续、无跳切】的动作链：起点姿态→动作A：从X向Y位移约N米/升高N层、耗时Ns、身体朝向Z→动力衔接（借力/反冲/惯性如何过渡）→动作B→…→终点姿态；每两个动作之间必须交代身体如何连续过渡，禁止出现「瞬间移动」「忽然出现」「凭空」等断裂；一镜到底下主体运动须全程连贯、可追溯）\n3.镜头运动：（写明机位、镜头焦段如35mm/50mm/85mm、光圈如f/1.4、帧率24fps叙事或120fps慢动作；优先使用本技能命名运镜：一镜到底·索道飞梭、同步平移环绕·驼客、子弹时间、慢镜头120格、钟摆荡开·借力、反冲拔高·展翼、手持动态追踪·纪实；标注每段运镜起止时间码与角度变化；【一镜到底】下须写成一条不间断的摄影机运动路径，严禁出现「切到/切换到/转场至」等剪辑切镜表述）\n4.景别构图：（在【一镜到底】下，须描写同一台运动摄影机的景别如何随推/拉/摇/移/升/降连续演变，必须写明「同一机位连续运动改变景别，非剪辑切换」；禁止列出互相切换的多个机位或镜头尺寸）\n5.光影氛围：（写明主光/辅光/轮廓光来源与色温如5600K冷光/3200K暖光、光比、体积光/丁达尔、霓虹色值、高光与阴影处理、HDR动态范围）\n6.风格一致性：\n7.节奏时长：（标注每段时间码与秒数，总时长与动作链各段一一对应）\n8.空间关系：（标注精确空间坐标/距离/层级/相对方位，如「距镜头3米、位于画面右三分之一、高于地面12层」）\n9.首尾帧约束：\n10.负面提示词：（至少含：剪辑/跳切/硬切/镜头切换、模糊、低分辨率、卡通感、人物变形、静止镜头；【一镜到底】下必须明确列出「剪辑、跳切、硬切」以杜绝切镜）\n再追加两条：\n音效设计：（拟声词 + 环境音 + 人声语气，如「剑鸣—— 骤雨 脚步声 （喘息）低吼」）\n对话台词：（必须写出本镜的对话/对白，2-4 句起，带说话人标签如 夜枭：「…」 守卫：「…」，包含冲突、威胁、反转或情绪爆发，可穿插角色内心独白；仅在纯默片式无语言镜头才写「无」，禁止整集都写「无」；台词要贴合整体剧情文案中的人物关系与处境，且全剧对白应形成递进的弧线——从对峙、试探到决裂/觉醒，避免每镜都说同样的话）\n承接规则：若收到【上一镜】，本镜必须承接/跟随它——同一批角色、服装、武器、光影基调、风格世界保持一致；除非剧情明确转场，否则第5条(光影氛围)与第6条(风格一致性)应与上一镜口径一致；第9条(首尾帧约束)必须呼应上一镜的尾帧，保证空间与动作连续（人物位置、朝向、道具状态对得上），且本镜动作链须从上一镜终点无缝续接、不得重置起点；本镜的地点/运镜/主体动作须与上一镜明显区分，禁止复制或雷同上一镜内容；对话也要延续人物状态与情绪，形成连贯的剧情节奏。\n通用要求：【集结构铁律】每一集必须由 2-4 个【一镜到底】片段组成，各片段须在场景地点、运镜方式、动作类型上彼此不同（禁止复制/雷同镜头，不得与上一镜重复主体动作）；片段依次承担「开场钩子→中段对抗升级→高潮爆发释放」的爆款情绪曲线（悬念拉满的开场、层层加码的对抗、彻底释放的爽点），并靠角色/光影/首尾帧严格承接保证整集连贯不跳戏；严格不添加整体剧情文案里没有的角色/地点/动作（防止跑偏）；但2.动作描述与对话台词要承载剧情张力——融入动机、转折、情绪与反转，避免流水账式单调打斗；动作与镜头必须【精确可执行】——给出时空参数（秒、米、角度、朝向、层级），少用「快速」「猛烈」等模糊词；一镜到底须保证运镜轨迹与主体运动严丝合缝同步；若【全局风格锚定】或本镜剧情含「一镜到底」，则本镜必须是单一连续镜头——零剪辑、零硬切，镜头运动为一条不间断的摄影机路径，全程不切换机位，所有景别与动作变化均由同一台运动中的摄影机完成；若为武打/动作戏，须达到袁和平式动作精度——逐个命名对手(甲/乙/A/B…)，每招写明「动作→发力方式→命中部位→受击反应(踉跄/倒飞/撞物崩断)→位移后果」，标注变速倍速(如 2 倍速 / 0.2 倍速慢镜)，重击须顿挫卡点、招招落实杜绝空打，敌人受击即给明确反馈；运镜用斯坦尼康贴身跟拍，随发力产生低频微震，全程不跳切不中断；【必须包含摄影级精确参数：镜头焦段(mm)、光圈(f/)、帧率(fps)、色温(K)、位移(米)、耗时(秒)、朝向与层级】；只做镜头化转译；不要输出 JSON、不要解释、不要加 markdown 围栏；直接输出上述带【标签】的纯文本，篇幅要足够详尽专业（整体不少于400字）；【音效设计】与【对话台词】两段必须始终完整写出且置于文末、不得因篇幅省略，纯动作无语言镜头对话可写「无」但音效设计仍须含环境音与拟声，严禁整镜只出画面不出声画。\n【标杆示范】以下是一段达到要求的标杆级输出样例，请学习其【信息密度、摄影参数精度（焦段/光圈/帧率/色温/位移/秒）、物理连续动作链、结构完整度】；但本镜内容须严格依据用户给出的剧情生成，不得照抄示例中的具体角色与动作，且仍须遵守「一镜到底零剪辑」规则：\n主体锁定：主角小满，一名约6-8岁的小男孩，面容冷峻，眼神透着超越年龄的肃杀。身穿一件高光泽度黑色真皮机车夹克（皮革纹理清晰，可见细微的天然毛孔与接缝线），内搭黑色紧身皮裤，足蹬厚底黑色系带作战靴。其右手掌心紧握一张泛黄且边缘卷曲的旧照片（照片上是一个扎双马尾的小女孩，即妹妹阿岚）。三名配角守卫，身着挺括的90年代剪裁黑西装，白色衬衫，黑色细领带，体型魁梧，面带轻蔑之色。场景位于古建门槛前，青砖地面由于雨水浸染呈现深灰蓝色，背景是深色的木质门扉与廊柱，空气中弥漫着冷色调的雨雾。\n动作描述：起点姿态：小满静立于画面中心，身体呈绝对静止状态，右手持照片下垂，低头俯视。动作A（0-3s）：小满缓缓抬起头，眼神由低垂转为直视前方，目光如刃，身体重心维持在脚跟，此时三名守卫从画面左、右、后方呈扇形包抄，步幅沉稳，距离小满约3米处停下，领头守卫甲身体微倾，嘴角上扬露出嗤笑。动作B（3-5s）：小满嘴唇微动说出台词，随后身体重心骤然下沉，膝盖弯曲约45度，脚尖抓地，双臂在身体两侧迅速回收呈起势状态。动力衔接（5-7s）：利用下沉的势能瞬间爆发，身体呈45度角向前俯冲，右脚猛力蹬地，地面雨水被震飞形成向后溅射的水花，身体如离弦之箭向守卫甲冲刺，位移约2米。终点姿态：身体前倾，右臂后摆准备发力，镜头紧随其后进入极速追踪状态。\n镜头运动：采用【一镜到底·索道飞梭】。起始机位：85mm焦段，f/1.8大光圈，24fps，机位位于小满正前方3米，俯拍45度，捕捉其低头状态；0-3s：镜头缓慢拉近（Push-in）至小满面部特写，焦点精准锁定在眼眸。3-5s：镜头迅速后撤至中景（Medium Shot），同时进行180°半圆环绕，将包抄的三名守卫纳入同一画幅。5-7s：在小满重心下沉的一刻，镜头转为【手持动态追踪·纪实】模式，高度骤降至地面10厘米，紧贴小满后脚跟方向极速向前推进，伴随轻微的呼吸感震颤，将速度感推至极致。\n景别构图：同一机位连续运动改变景别，非剪辑切换。特写（眼睛）→中景（对峙阵型）→极低角度跟随特写（脚步与地面）→动态全景（俯冲轨迹）。构图遵循对称美学，初始时小满位于中心轴，包抄时形成三角形压迫感，俯冲时形成强烈的对角线纵深引导线。\n光影氛围：主光采用5600K冷青色顶光，模拟阴天雨林的自然光线；辅光为侧面冷蓝霓虹辉光，勾勒出皮革夹克的高光边缘。环境充斥着【丁达尔效应】，雨丝在冷色光束中清晰可见。高光部分处理为柔和的Bloom效果，阴影区深邃且细节锐利，整体呈现HDR高动态范围，低饱和度冷色调，营造出肃杀、压抑且极具电影感的氛围。\n风格一致性：90年代港风武侠，柯达35mm胶片质感，可见自然的银盐颗粒感，边缘带有轻微的色散/色差畸变。\n节奏时长：总时长7秒。0-3s（静谧对峙，节奏慢）；3-5s（情绪积压，节奏平稳）；5-7s（爆发俯冲，节奏极快，升格至2倍速）。\n空间关系：小满位于坐标(0,0,0)，守卫甲位于正前方3米，守卫乙/丙分别位于左右两侧2.5米。镜头在7秒内从正前方3米位移至小满身后0.5米处。\n首尾帧约束：首帧为小满低头静立的特写；尾帧为镜头紧贴小满后背，其身体呈俯冲之势，画面右侧出现守卫甲惊愕的侧脸，为下一镜的侧踢做好空间衔接。\n负面提示词：剪辑、跳切、硬切、镜头切换、模糊、低分辨率、卡通感、人物变形、静止镜头、三维建模感、明亮暖色、慢节奏。\n音效设计：雨水击打青砖的持续白噪音（淅沥声）—— 沉重的皮靴踏水声（啪嗒）—— 守卫甲刺耳的嗤笑声 —— 小满低沉冷冽的呼吸声 —— 猛然蹬地时的爆裂水花声（轰）。\n对话台词：\n守卫甲：（轻蔑地嗤笑）娃娃也敢闯？\n小满：（冷冽，毫无感情）我来接我妹妹。"}
+};
+const SINGLE_MAP={subject:"s_subject",action:"s_action",camera:"s_camera",shot:"s_shot",lighting:"s_lighting",style:"s_style",rhythm:"s_rhythm",spatial:"s_spatial",frames:"s_frames",negative:"s_negative",plot:"s_plot"};
+const FIGHT_MAP=["name","dur","quality","art","scene","a","b","line","cam1","act1","fx1","cam2","act2","fx2","cam3","act3","fx3"];
+async function ollamaLocalChat(model,messages,wantJson){
+  const body={model,messages,think:false,stream:false}; if(wantJson) body.format="json"; body.options={num_predict:4096};
+  const attempts=["http://localhost:8771/ollama/api/chat","/ollama/api/chat","http://localhost:11434/api/chat"];
+  let lastErr="本地 Ollama 无响应（确认 Ollama 已启动，并通过本工具自带启动器打开页面）";
+  for(const url of attempts){
+    try{
+      const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(res.ok){ const j=await res.json(); if(j&&j.message) return {ok:true,j}; }
+      else { const t=await res.text(); lastErr="HTTP "+res.status+" "+t.slice(0,120); }
+    }catch(e){ lastErr=e.message; }
+    if(url===attempts[0]) continue;
+  }
+  return {ok:false,err:lastErr};
+}
+function remoteUrls(c){
+  const direct=c.base.replace(/\/+$/,"")+"/chat/completions";
+  if(/ollama\.com/i.test(c.base)){
+    const rel="/ollamacloud"+direct.replace(/^https?:\/\/ollama\.com/i,"");
+    return [rel,direct];
+  }
+  return [direct];
+}
+async function runAi(scene,fmt,statusEl,textOutEl,map,renderFn,jsonOutKey,imgs){
+  const cfg=AI_FMTS[fmt]||AI_FMTS.single10; if(!cfg) return;
+  const c=aiConf(); const local=/localhost|127\.0\.0\.1/.test(c.base);
+  if(!c.key && !local){ alert("请先在「AI 联网设置」里填写 API Key（本地 Ollama 可留空）"); return; }
+  statusEl.textContent="生成中…";
+  let txt=""; let imgNote="";
+  try{
+    if(local){
+      const hasImg=imgs&&imgs.length;
+      const mk=ims=>{ const u={role:"user",content:scene}; if(ims&&ims.length){ u.images=ims.map(s=>String(s).replace(/^data:.*;base64,/,"")); } return u; };
+      let r=await ollamaLocalChat(c.model,[{role:"system",content:cfg.sys},mk(imgs)],cfg.json);
+      if(!r.ok && hasImg){ r=await ollamaLocalChat(c.model,[{role:"system",content:cfg.sys},mk([])],cfg.json); if(r.ok) imgNote="（模型未能读取图片，已仅按剧情生成）"; }
+      if(!r.ok) throw new Error(r.err);
+      const j=r.j;
+      txt=(j.message?j.message.content:"")||"";
+    } else {
+      const uContent=(imgs&&imgs.length)?[{type:"text",text:scene}].concat(imgs.map(s=>({type:"image_url",image_url:{url:s}}))):scene;
+      const reqBody={model:c.model,messages:[{role:"system",content:cfg.sys},{role:"user",content:uContent}],temperature:0.8};
+      if(cfg.json) reqBody.response_format={type:"json_object"};
+      if(/ollama\.com/i.test(c.base)) reqBody.max_tokens=6000; else reqBody.max_tokens=4096;
+      const headers={"Content-Type":"application/json"}; if(c.key) headers.Authorization="Bearer "+c.key;
+      let res=null; const urls=remoteUrls(c);
+      for(const u of urls){
+        try{
+          const r=await fetch(u,{method:"POST",headers,body:JSON.stringify(reqBody)});
+          if(r.ok){ res=r; break; }
+          const t=await r.text(); throw new Error("HTTP "+r.status+" "+t.slice(0,140));
+        }catch(e){ if(u===urls[urls.length-1]) throw e; }
+      }
+      const j=await res.json();
+      txt=j.choices && j.choices[0] ? j.choices[0].message.content : "";
+    }
+    txt=txt.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
+    if(cfg.json){
+      const d=JSON.parse(txt);
+      if(map){
+        if(Array.isArray(map)) map.forEach(k=>{ if(d[k]!==undefined && $("f_"+k)) $("f_"+k).value=d[k]; });
+        else Object.keys(map).forEach(k=>{ if(d[k]!==undefined) $(map[k]).value=d[k]; });
+        if(renderFn) renderFn();
+        statusEl.textContent="✅ 已生成并填入，右侧可复制"+imgNote;
+      }
+      if(jsonOutKey){
+        textOutEl.value=d[jsonOutKey]||""; textOutEl.style.display="block";
+        const cp=textOutEl.nextElementSibling; if(cp) cp.style.display="inline-block";
+        if(!map) statusEl.textContent="✅ AI 已生成跨界创新方案，下方可复制"+imgNote;
+      }
+    } else {
+      textOutEl.value=txt; textOutEl.style.display="block";
+      const cp=textOutEl.nextElementSibling; if(cp) cp.style.display="inline-block";
+      statusEl.textContent="✅ 已生成，下方可复制（也可微调后使用）"+imgNote;
+    }
+  }catch(e){ statusEl.textContent="❌ "+e.message; }
+}
+$("s_aiGen").addEventListener("click",()=>{ const sc=$("s_aiIn").value.trim(); if(!sc){alert("先填一句话场景");return;}
+  runAi(sc,$("s_fmt").value,$("s_aiStatus"),$("s_aiOut"),SINGLE_MAP,renderSingle); });
+$("s_demo").addEventListener("click",()=>{
+  const demo={
+    subject:"柳如烟，黑发高马尾、额间花钿、墨色劲装束袖，正对镜头立于画面前三分之一",
+    action:"右手缓缓握剑柄匀速抽出半寸，剑身寒光渐亮，衣摆随气劲微扬",
+    camera:"镜头从腰部缓摇上升至面部特写，末段极缓推近",
+    shot:"特写，面部占70%，头顶留白，居中",
+    lighting:"冷蓝逆光，雨夜，地面霓虹反光，高对比",
+    style:"国风漫剧、厚涂笔触、电影感、细节丰富、统一美术风格",
+    rhythm:"6 秒，前 2 秒蓄势静止，后 4 秒拔剑渐紧",
+    spatial:"人物距镜头约 1 米，身后 3 米为朱红宫门，左右对称廊柱",
+    frames:"首帧：垂手静立；尾帧：剑出半寸、寒光及眉",
+    negative:DEFAULT_NEG.join("，"),
+    plot:"柳如烟与柳如霜皇宫内打斗一镜到底（剧情锚定，防止跑偏）"
+  };
+  Object.keys(SINGLE_MAP).forEach(k=>{ if(demo[k]!==undefined) $(SINGLE_MAP[k]).value=demo[k]; });
+  renderSingle();
+  $("s_aiStatus").textContent="✅ 已填入本地示例（无需 API），右侧可复制；配好 Key 后可用「AI 生成」按你的场景定制";
+});
+$("f_aiGen").addEventListener("click",()=>{ const sc=$("f_aiIn").value.trim(); if(!sc){alert("先填一句话场景");return;}
+  runAi(sc,$("f_fmt").value,$("f_aiStatus"),$("f_aiOut"),FIGHT_MAP,renderFight); });
+$("s_aiCopy").addEventListener("click",()=>{ navigator.clipboard.writeText($("s_aiOut").value).then(()=>alert("已复制 AI 输出")); });
+$("f_aiCopy").addEventListener("click",()=>{ navigator.clipboard.writeText($("f_aiOut").value).then(()=>alert("已复制 AI 输出")); });
+["ai_base","ai_key","ai_model"].forEach(id=>$(id).addEventListener("input",saveAiConf));
+(function loadAiConf(){ const c=aiConf(); const local=/localhost|127\.0\.0\.1|11434/.test(c.base); const stale=["","gpt-4o-mini","gemma4:latest","qwen3.5:latest","gemma4:26b"]; if(!c.key&&!local){ localStorage.setItem("ai_base","http://localhost:11434/v1"); localStorage.setItem("ai_model","gemma4:12b"); c.base="http://localhost:11434/v1"; c.model="gemma4:12b"; } else if(local&&stale.includes(c.model)){ localStorage.setItem("ai_model","gemma4:12b"); c.model="gemma4:12b"; } if(c.base)$("ai_base").value=c.base; if(c.key)$("ai_key").value=c.key; if(c.model)$("ai_model").value=c.model; })();
+const AI_PRESETS={
+  openai:{base:"https://api.openai.com/v1",model:"gpt-4o-mini"},
+  deepseek:{base:"https://api.deepseek.com",model:"deepseek-chat"},
+  qwen:{base:"https://dashscope.aliyuncs.com/compatible-mode/v1",model:"qwen-plus"},
+  moonshot:{base:"https://api.moonshot.cn/v1",model:"moonshot-v1-8k"},
+  silicon:{base:"https://api.siliconflow.cn/v1",model:"Qwen/Qwen2.5-7B-Instruct"},
+  groq:{base:"https://api.groq.com/openai/v1",model:"llama-3.3-70b-versatile"},
+  ollama:{base:"http://localhost:11434/v1",model:"gemma4:12b"},
+  ollamacloud:{base:"https://ollama.com/v1",model:"gemma4:31b-cloud"}
+};
+$("ai_preset").addEventListener("change",e=>{
+  const p=AI_PRESETS[e.target.value];
+  if(p){ $("ai_base").value=p.base; $("ai_model").value=p.model; saveAiConf();
+    const tip=(e.target.value==="ollama")?"（本地运行，Key 可留空）":"，填 Key 后点测试连接";
+    $("ai_testStatus").textContent="已填入 "+e.target.value+" 预设"+tip; $("ai_testStatus").style.color="var(--muted)"; }
+});
+// 启动时按已存 Base 反推下拉框，保证显示与实际配置一致（不再出现"显示云端、实际本地"）
+(function initPreset(){
+  const c=aiConf(); const sel=$("ai_preset");
+  const hit=Object.entries(AI_PRESETS).find(([,v])=>v.base===c.base);
+  sel.value=hit?hit[0]:(c.base?"custom":"");
+})();
+async function testAi(){
+  saveAiConf();
+  const c=aiConf(); const st=$("ai_testStatus");
+  if(!c.base){ st.textContent="先选服务商预设或填 API Base"; st.style.color="var(--warn)"; return; }
+  const local=/localhost|127\.0\.0\.1/.test(c.base);
+  if(!c.key && !local){ st.textContent="先填 API Key（本地 Ollama 可留空）"; st.style.color="var(--warn)"; return; }
+  st.textContent="连接中…"; st.style.color="var(--muted)";
+  try{
+    if(local){
+      const r=await ollamaLocalChat(c.model,[{role:"user",content:"ping"}],false);
+      if(!r.ok) throw new Error(r.err);
+      if(r.j.message&&r.j.message.content){ st.textContent="✅ 连接成功（"+c.model+" 可用）"; st.style.color="var(--ok)"; }
+      else throw new Error("返回异常："+JSON.stringify(r.j).slice(0,120));
+    } else {
+      const headers={"Content-Type":"application/json"}; if(c.key) headers.Authorization="Bearer "+c.key;
+      const tbody={model:c.model,messages:[{role:"user",content:"ping"}],temperature:0.1};
+      if(/ollama\.com/i.test(c.base)) tbody.max_tokens=200;
+      let res=null; const urls=remoteUrls(c);
+      for(const u of urls){
+        try{
+          const r=await fetch(u,{method:"POST",headers,body:JSON.stringify(tbody)});
+          if(r.ok){ res=r; break; }
+          const t=await r.text(); throw new Error("HTTP "+r.status+" "+t.slice(0,140));
+        }catch(e){ if(u===urls[urls.length-1]) throw e; }
+      }
+      const j=await res.json();
+      if(j.choices&&j.choices[0]){ st.textContent="✅ 连接成功（"+c.model+" 可用）"; st.style.color="var(--ok)"; }
+      else throw new Error("返回异常："+JSON.stringify(j).slice(0,120));
+    }
+  }catch(e){
+    let msg=e.message||String(e);
+    if(/Failed to fetch|NetworkError|TypeError/.test(msg)){
+      msg="连接失败：多半是网络不可达（被墙/需代理）或该地址不允许浏览器跨域(CORS)。建议改用国内可直连的服务商（选上方预设），或确认该端点允许 CORS 且未被拦截。";
+    }
+    st.textContent="❌ "+msg; st.style.color="var(--warn)";
+  }
+}
+$("ai_test").addEventListener("click",testAi);
+
+// ---- 创新实验室 ----
+const CAM={
+  yijing:{name:"一镜到底·索道飞梭",skeleton:"镜头全程不切，跟随主体极速向前，越过/穿过障碍时切换局部机位（侧跟→后俯→正前特写→180°环绕）"},
+  wrap:{name:"同步平移环绕·驼客",skeleton:"镜头与主体同步向前平移，同时顺时针360°环绕：0°后越肩→90°左→180°倒退跟拍→270°→360°回位，轨迹按秒焊死角度"},
+  segtime:{name:"分段时间码+字幕收尾·影杀",skeleton:"按秒分段（0-2s远景→…），每段独立运镜+音效，末段浮金字幕收尾"},
+  slowmo:{name:"慢镜头120格",skeleton:"关键击杀瞬间切慢动作，残影持续两帧，周围粒子悬浮"},
+  bullettime:{name:"子弹时间",skeleton:"时间凝固，能量/子弹旋转轨迹清晰擦过脸颊，主体保持动态"},
+  pov:{name:"POV主观视角·坠落",skeleton:"第一人称视点，天旋地转地面快速逼近/坠落，强代入感"},
+  pendulum:{name:"钟摆荡开·借力",skeleton:"借力缠绕物体，身形如钟摆荡开，毫厘避开攻击"},
+  recoil:{name:"反冲拔高·展翼",skeleton:"借爆炸/反冲推力，倒背展开翼/伞，向正上方极速拔高"},
+  micro:{name:"微距定格·粒子",skeleton:"关键瞬间微距静态定格，粒子/火花特写，定格摄影"},
+  double:{name:"双重曝光/镜像",skeleton:"画面叠化出镜像或残影层，虚实重叠"},
+  fish:{name:"鱼眼旋转·畸变",skeleton:"鱼眼镜头极速旋转半圈，背景高速倒退"},
+  hand:{name:"手持动态追踪·纪实",skeleton:"手持摄影般轻微晃动跟拍，呼吸感强烈"},
+  rise:{name:"升格/降格",skeleton:"关键情绪段升格慢镜或降格快进，时间被重新分配"},
+  mirror:{name:"镜面反射·对称",skeleton:"借水面/玻璃/镜面形成对称构图，运镜沿反射轴滑移"}
+};
+const VFX={
+  tyndall:{name:"丁达尔效应",desc:"高温蒸汽/光束在环境中产生体积光柱"},
+  mach:{name:"马赫锥冲击云",desc:"爆炸产生白色奇爆云冲击波(Mach cone)"},
+  glass:{name:"玻璃碎裂",desc:"错身瞬间画面如玻璃碎裂般视觉冲击"},
+  ink:{name:"水墨残影",desc:"黑白/单色水墨残影拖尾，虚实交叠"},
+  arc:{name:"红白弧光",desc:"兵器/能量交击激发红白交织弧光与震荡波"},
+  gold:{name:"金色灵蕴粒子",desc:"消散/炸裂时金粉光尘弥漫"},
+  lava:{name:"熔岩能量喷发",desc:"地面裂坑喷发熔岩般能量"},
+  fire:{name:"火光冲天+玻璃四溅",desc:"爆炸火焰与碎玻璃同步迸射"},
+  shell:{name:"慢动作弹壳悬浮",desc:"弹壳/水珠空中悬浮旋转"},
+  weightless:{name:"失重感",desc:"重力失衡的飘浮失重"},
+  neon:{name:"霓虹光效",desc:"冷蓝/品红霓虹辉光"},
+  oc:{name:"OC渲染8K",desc:"超写实渲染词收尾"},
+  chromatic:{name:"色散/色差畸变",desc:"高速运动边缘出现 RGB 色散与色差"},
+  bloom:{name:"体积光晕·Bloom",desc:"强光源溢出发光晕，画面通透梦幻"}
+};
+// 技能知识上下文：把镜头库/特效库/创新法注入到每个 AI 生成请求的 system 提示词，让模型"学习"本技能框架
+const SKILL_CTX=
+"【本工具技能框架（生成时必须遵循此专业体系）】\n"+
+"① 镜头语言词汇表（优先使用这些命名运镜，而非泛泛描述）：\n"+Object.entries(CAM).map(([,v])=>"· "+v.name+"："+v.skeleton).join("\n")+"\n"+
+"② 视觉特效词汇表（优先使用这些命名特效）：\n"+Object.entries(VFX).map(([,v])=>"· "+v.name+"："+v.desc).join("\n")+"\n"+
+"③ 跨界创新法：把『运镜轨迹』与『特效物理』做 1+1>2 的耦合（如某运镜角度触发某特效、能量沿轨迹流转、击中点引爆连锁反应），禁止简单拼接。\n"+
+"④ 画质/氛围锚定词（按需选用）：电影级写实、HDR 高动态范围、细节锐利、体积光、粒子丰富、8K 超写实渲染。\n";
+Object.keys(AI_FMTS).forEach(k=>{ AI_FMTS[k].sys = SKILL_CTX + "\n" + AI_FMTS[k].sys; });
+document.querySelectorAll("#lab .chip").forEach(ch=>ch.addEventListener("click",()=>ch.classList.toggle("on")));
+function labSel(cls){ return [...document.querySelectorAll("#lab ."+cls+".on")].map(e=>e.dataset.key); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function buildPrompt(scene,cs,vs){
+  let p=scene+"。";
+  if(cs.length) p+=cs.map(c=>c.skeleton).join("；");
+  if(vs.length) p+="，画面中"+vs.map(v=>v.desc).join("，")+"。";
+  p+=" 电影级画质，OC 渲染，8K 超高清。";
+  return p;
+}
+function labFuse(){
+  const scene=$("lab_scene").value.trim(); if(!scene){alert("先填一句话基础场景/主体");return;}
+  let cams=labSel("cam-chip"), vfxs=labSel("vfx-chip"); const mode=$("lab_mode").value;
+  if(mode==="random"){ if(!cams.length&&!vfxs.length){cams=[pick(Object.keys(CAM))];vfxs=[pick(Object.keys(VFX))];}
+    else if(!cams.length)cams=[pick(Object.keys(CAM))]; else if(!vfxs.length)vfxs=[pick(Object.keys(VFX))]; }
+  if(!cams.length&&!vfxs.length){alert("至少选一个运镜或一个特效");return;}
+  const cs=cams.map(k=>CAM[k]), vs=vfxs.map(k=>VFX[k]);
+  let s="";
+  s+="【基础场景】"+scene+"\n\n";
+  if(cs.length){ s+="【运镜骨架】\n"; cs.forEach(c=>s+="· "+c.name+"："+c.skeleton+"\n"); s+="\n"; }
+  if(vs.length){ s+="【视觉特效涂层】\n"; vs.forEach(v=>s+="· "+v.name+"："+v.desc+"\n"); s+="\n"; }
+  s+="【融合机制】\n";
+  if(cs.length&&vs.length){
+    cs.forEach(c=>vs.forEach(v=>{ s+="→ 以「"+c.name+"」为运镜骨架，在其节奏高潮节点（约骨架 60% 处）触发「"+v.name+"」："+v.desc+"，与运镜物理耦合——运镜推进到该节点时特效同步达峰值，单镜头内完成「运动+爆发」一体。\n"; }));
+    if(cs.length>1) s+="多运镜骨架按时间码串联（A 0-3s → B 3-7s），每个切换点用「"+vs[0].name+"」做视觉过场。\n";
+  } else if(cs.length){ s+="仅运镜骨架，建议补一层特效以强化记忆点。\n"; }
+  else { s+="仅特效，建议搭配一个运镜骨架（如「同步平移环绕」）让特效有运动载体。\n"; }
+  s+="\n【可直接使用提示词片段】\n"+buildPrompt(scene,cs,vs);
+  $("labOut").value=s; $("labOut").style.display="block"; $("labCopy").style.display="inline-block";
+  $("labStatus").textContent="✅ 已生成融合方案，可复制或点「AI 跨界创新」再升级";
+}
+$("lab_fuse").addEventListener("click",labFuse);
+$("lab_innovate").addEventListener("click",()=>{
+  const scene=$("lab_scene").value.trim(); if(!scene){alert("先填一句话基础场景/主体");return;}
+  const cams=labSel("cam-chip"), vfxs=labSel("vfx-chip");
+  if(!cams.length&&!vfxs.length){alert("至少选一个运镜或一个特效资源");return;}
+  const parts=[];
+  if(cams.length) parts.push("运镜资源："+cams.map(k=>CAM[k].name+"（"+CAM[k].skeleton+"）").join("；"));
+  if(vfxs.length) parts.push("视觉特效资源："+vfxs.map(k=>VFX[k].name+"（"+VFX[k].desc+"）").join("；"));
+  const payload="基础场景："+scene+"。\n"+parts.join("\n")+"\n请基于上述资源跨界杂交出全新的运镜+视觉特效组合（不要简单拼接）。";
+  runAi(payload,"innovate",$("labStatus"),$("labOut"),null,null,"prompt");
+});
+$("labCopy").addEventListener("click",()=>{ navigator.clipboard.writeText($("labOut").value).then(()=>alert("已复制方案")); });
+
+// ---- 剧情工坊 ----
+function escapeHtml(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function plotAddCard(beat,prompt){
+  const wrap=document.getElementById("plot_beats");
+  const card=document.createElement("div");
+  card.className="plot-card";
+  card.style.cssText="border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:var(--panel-2)";
+  card.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<b style="font-size:12px;color:var(--accent)">分镜</b>'+
+      '<button class="btn ghost p_del" style="font-size:11px;padding:3px 9px">删除</button>'+
+    '</div>'+
+    '<label style="font-size:11px;color:var(--muted)">分镜剧情（这一镜讲什么）</label>'+
+    '<textarea class="p_beat" rows="2" style="width:100%;margin:4px 0;background:#0a0c12;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;font-family:inherit">'+escapeHtml(beat)+'</textarea>'+
+    '<div class="p_imgbox" style="margin:6px 0">'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<label class="btn ghost p_imgadd" style="font-size:11px;padding:4px 10px;cursor:pointer;margin:0">🖼 添加分镜图（最多5张）</label>'+
+        '<input type="file" accept="image/*" class="p_img" style="display:none" multiple>'+
+        '<span class="p_imginfo" style="font-size:11px;color:var(--muted)"></span>'+
+      '</div>'+
+      '<div class="p_imgs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin:4px 0">'+
+      '<button class="btn p_gen" style="font-size:12px;padding:5px 12px">AI 生成提示词</button>'+
+      '<span class="p_status" style="font-size:11px;color:var(--muted);align-self:center"></span>'+
+    '</div>'+
+    '<label style="font-size:11px;color:var(--muted)">分镜提示词（按剧情编辑，可直接改）</label>'+
+    '<textarea class="p_prompt" rows="4" style="width:100%;margin-top:4px;background:#0a0c12;color:#d7e3f4;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;font-family:monospace">'+escapeHtml(prompt)+'</textarea>';
+  wrap.appendChild(card);
+  card.querySelector(".p_del").addEventListener("click",()=>{ card.remove(); plotRenumber(); });
+  card.querySelector(".p_gen").addEventListener("click",()=>plotGenCard(card));
+  const pImgAdd=card.querySelector(".p_imgadd"), pImg=card.querySelector(".p_img"),
+        pImgs=card.querySelector(".p_imgs"), pInfo=card.querySelector(".p_imginfo");
+  if(!card._imgs) card._imgs=[];
+  function renderImgs(){
+    pImgs.innerHTML="";
+    card._imgs.forEach((src,i)=>{
+      const w=document.createElement("div"); w.style.cssText="position:relative;display:inline-block";
+      const im=document.createElement("img"); im.src=src; im.style.cssText="max-width:96px;max-height:72px;border-radius:6px;border:1px solid var(--line);object-fit:cover";
+      const del=document.createElement("button"); del.textContent="✕"; del.style.cssText="position:absolute;top:-6px;right:-6px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;padding:0";
+      del.addEventListener("click",()=>{ card._imgs.splice(i,1); renderImgs(); });
+      w.appendChild(im); w.appendChild(del); pImgs.appendChild(w);
+    });
+    pInfo.textContent=card._imgs.length?("已附 "+card._imgs.length+"/5 张"):"";
+    pImgAdd.style.display=card._imgs.length>=5?"none":"inline-block";
+  }
+  renderImgs();
+  pImgAdd.addEventListener("click",()=>pImg.click());
+  pImg.addEventListener("change",e=>{
+    const files=[...(e.target.files||[])];
+    for(const f of files){ if(card._imgs.length>=5) break;
+      const rd=new FileReader();
+      rd.onload=ev=>{ card._imgs.push(ev.target.result); renderImgs(); };
+      rd.readAsDataURL(f);
+    }
+    pImg.value="";
+  });
+  plotRenumber();
+}
+function plotRenumber(){
+  document.querySelectorAll("#plot_beats .plot-card").forEach((c,i)=>{ c.querySelector("b").textContent="分镜 "+(i+1); });
+}
+function plotSplit(){
+  const txt=$("plot_story").value.trim();
+  const mode=$("plot_split").value;
+  let arr=[];
+  if(mode==="blank") arr=txt.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+  else if(mode==="line") arr=txt.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  if(!arr.length){ if(!txt){alert("先写剧情文案");return;} arr=[txt]; }
+  document.getElementById("plot_beats").innerHTML="";
+  arr.forEach(b=>plotAddCard(b,""));
+  $("plot_status").textContent="✅ 已拆出 "+arr.length+" 个分镜，点各镜「AI 生成提示词」或「全部 AI 生成」";
+}
+function plotGenCard(card){
+  const story=$("plot_story").value.trim();
+  const style=$("plot_style").value.trim();
+  const beat=card.querySelector(".p_beat").value.trim();
+  if(!beat){ alert("先写这一镜的分镜剧情"); return; }
+  const st=card.querySelector(".p_status");
+  const imgs=card._imgs||[];
+  const cards=[...document.querySelectorAll("#plot_beats .plot-card")];
+  const idx=cards.indexOf(card);
+  let payload="【本镜序号】第"+(idx+1)+"镜\n【整体剧情文案】\n"+(story||"（无整体文案）")+"\n\n【本镜分镜剧情】\n"+beat+"\n\n【全局风格锚定】\n"+(style||"（沿用默认）");
+  if(idx>0){
+    const pc=cards[idx-1];
+    const pb=pc.querySelector(".p_beat").value.trim();
+    const pp=pc.querySelector(".p_prompt").value.trim();
+    payload+="\n\n【上一镜（第"+idx+"镜，本镜须承接/跟随它）】\n";
+    if(pb) payload+="上一镜剧情："+pb+"\n";
+    if(pp) payload+="上一镜已生成提示词（据此保持角色/服装/武器、光影基调、风格世界一致；第9条首尾帧约束要呼应上一镜尾帧，保证空间与动作连续）：\n"+pp+"\n";
+    else payload+="（上一镜提示词尚未生成，仅需承接其剧情即可）\n";
+  }
+  if(imgs.length) payload+="\n\n（已附本镜 "+imgs.length+" 张分镜图/首帧图，请综合各图画面中的实际角色与场景写提示词，不要臆造图中没有的元素）";
+  return runAi(payload,"plotshot",st,card.querySelector(".p_prompt"),null,null,null,imgs);
+}
+async function plotGenAll(){
+  const cards=[...document.querySelectorAll("#plot_beats .plot-card")];
+  if(!cards.length){ alert("先拆分分镜"); return; }
+  for(const c of cards){ await plotGenCard(c); }
+}
+function plotExport(){
+  const story=$("plot_story").value.trim();
+  const style=$("plot_style").value.trim();
+  const cards=[...document.querySelectorAll("#plot_beats .plot-card")];
+  if(!cards.length){ alert("先拆分分镜"); return; }
+  let out="【剧情文案】\n"+(story||"（未填写）")+"\n\n";
+  if(style) out+="【全局风格锚定】"+style+"\n\n";
+  cards.forEach((c,i)=>{
+    const beat=c.querySelector(".p_beat").value.trim();
+    const prompt=c.querySelector(".p_prompt").value.trim();
+    out+="—— 分镜 "+(i+1)+" ——\n";
+    out+="分镜剧情："+(beat||"（未填）")+"\n";
+    if(c._imgs&&c._imgs.length) out+="分镜图："+c._imgs.length+" 张（已在卡片附图，生成视频时一并上传）\n";
+    out+="提示词："+(prompt||"（未生成，点该镜「AI 生成提示词」）")+"\n\n";
+  });
+  $("plot_preview").value=out.trim(); $("plot_preview").style.display="block";
+  $("plot_copy").style.display="inline-block";
+  $("plot_status").textContent="✅ 已生成完整分镜脚本，可复制";
+}
+// ---- 剧集管理：多集切换 + 本地持久化（刷新不丢；图片为临时参考不持久化） ----
+let plotEps=[{title:"第1集",story:"",style:"",shots:[]}];
+let plotEpIdx=0;
+function plotSerialize(){
+  const cards=[...document.querySelectorAll("#plot_beats .plot-card")];
+  return { story:$("plot_story").value, style:$("plot_style").value,
+    shots:cards.map(c=>({beat:c.querySelector(".p_beat").value,prompt:c.querySelector(".p_prompt").value})) };
+}
+function plotSaveCurrent(){
+  const d=plotSerialize();
+  if(!plotEps[plotEpIdx]) plotEps[plotEpIdx]={title:"第"+(plotEpIdx+1)+"集"};
+  plotEps[plotEpIdx].story=d.story; plotEps[plotEpIdx].style=d.style; plotEps[plotEpIdx].shots=d.shots;
+}
+function plotRenderEps(){
+  const box=$("plot_eps"); box.innerHTML="";
+  plotEps.forEach((e,i)=>{
+    const chip=document.createElement("button");
+    chip.className="btn ghost";
+    chip.style.cssText="font-size:12px;padding:4px 10px;margin:0"+(i===plotEpIdx?";background:var(--accent);color:#06121f;border-color:var(--accent)":"");
+    chip.textContent=e.title||("第"+(i+1)+"集");
+    chip.addEventListener("click",()=>plotLoadEp(i));
+    box.appendChild(chip);
+  });
+}
+function plotLoadEp(i){
+  if(i===plotEpIdx) return;
+  plotSaveCurrent(); plotEpIdx=i;
+  const e=plotEps[i]||{title:"第"+(i+1)+"集",story:"",style:"",shots:[]};
+  $("plot_story").value=e.story||""; $("plot_style").value=e.style||"";
+  document.getElementById("plot_beats").innerHTML="";
+  (e.shots||[]).forEach(s=>plotAddCard(s.beat||"",s.prompt||""));
+  $("plot_status").textContent="已切换到 "+(e.title||("第"+(i+1)+"集"));
+  plotRenderEps(); plotPersist();
+}
+function plotNewEp(){
+  plotSaveCurrent();
+  plotEps.push({title:"第"+(plotEps.length+1)+"集",story:"",style:"",shots:[]});
+  plotEpIdx=plotEps.length-1;
+  $("plot_story").value=""; $("plot_style").value="";
+  document.getElementById("plot_beats").innerHTML="";
+  $("plot_status").textContent="已新建 "+plotEps[plotEpIdx].title+"，开始写第二集吧";
+  plotRenderEps(); plotPersist();
+}
+function plotPersist(){ try{ localStorage.setItem("plot_eps",JSON.stringify(plotEps)); }catch(e){} }
+function plotRestore(){ try{ const s=localStorage.getItem("plot_eps"); if(s){ const a=JSON.parse(s); if(Array.isArray(a)&&a.length) plotEps=a; } }catch(e){} }
+(function plotInit(){
+  plotRestore();
+  if(!plotEps.length) plotEps=[{title:"第1集",story:"",style:"",shots:[]}];
+  plotEpIdx=0; const e=plotEps[0];
+  $("plot_story").value=e.story||""; $("plot_style").value=e.style||"";
+  document.getElementById("plot_beats").innerHTML="";
+  (e.shots||[]).forEach(s=>plotAddCard(s.beat||"",s.prompt||""));
+  plotRenderEps();
+})();
+$("plot_newEp").addEventListener("click",plotNewEp);
+// ---- 示例剧本：一键载入整集剧情（每集=几个一镜到底片段），新建一集避免覆盖现有内容 ----
+const SAMPLE_EPS={
+  ep1:{title:"夜枭·第1集",style:"爽片·一镜到底：电影级写实、HDR 高动态范围、冷蓝霓虹、高速连续运镜、强打击感、粒子丰富、8K 超写实",
+    story:"雨夜，夜枭从对面天台索降，沿财阀据点大厦外立面一镜到底俯冲，途中双枪点掉监控探头与巡逻守卫，破窗突入前厅，落地翻滚起身，全程镜头不切。\n\n前厅大厅内，夜枭借巨型吊灯钟摆荡开躲避弹雨，同步平移环绕中连续反杀六名敌人，每一步都踩着爆炸冲击波换位，红白弧光与马赫锥冲击云贯穿全程，镜头始终紧贴主角不切。\n\n顶层天台，夜枭与财阀头目一对一，子弹时间定格飞来的子弹擦过耳畔，慢镜头120格斩下，霓虹冷调下头目坠楼；夜枭拾起阿杰的定位器——反转：定位器显示阿杰早被转移，真正的猎杀才刚开始。"},
+  ep2:{title:"夜枭·第2集",style:"爽片·一镜到底：电影级写实、HDR 高动态范围、冷蓝霓虹、高速连续运镜、强打击感、粒子丰富、8K 超写实",
+    story:"夜枭顺着定位器信号杀入地下黑市，一镜到底穿过人潮与霓虹摊位，途中随手放倒三名拦截者，镜头跟拍不歇。\n\n黑市核心擂台，夜枭与改造拳手一镜到底近身缠斗，借每一次撞击的反冲拔高展翼换位，玻璃四溅与金色灵蕴粒子随击打炸开。\n\n密室救出阿杰瞬间，伏兵涌出，夜枭一镜到底护着阿杰且战且退杀出重围，最后反冲拔高破顶而出——反转：阿杰竟是诱饵，真正目标是夜枭体内的义体核心。"},
+  shen1:{title:"神童·满·第1集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"雨落古建门槛，小满一身黑皮衣立于雨里，掌心旧照片是被掳的妹妹阿岚；三名黑西装守卫包抄，领头嗤笑「娃娃也敢闯」，小满抬眼只回「我来接我妹妹」，重心骤沉俯冲起势，镜头贴身跟拍不歇。\n\n小满腾空侧踢轰在甲面部，甲仰头溅血倒栽；借旋身离心力一记鞭腿踹裂巨木柱，木屑与金光冲击波将乙震飞撞墙；丙刚拔枪便被贴身扣腕顶腹掀进灯笼堆，红白弧光贯穿长廊，招招落实。\n\n满地碎木与昏厥守卫中，小满踩过甲胸口拾起门禁卡，转身望向幽暗楼梯——深处传来阿岩熟悉的轻笑，雨丝拂动他冷冽侧脸，肃杀收尾。"},
+  shen2:{title:"神童·满·第2集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"现代大理石大厅，黑衣帽的阿岩立在中央，见小满咧嘴一笑：「把你带回去，我们就都能回家。」小满瞳孔骤缩——这笑是玩伴被洗脑前的样子；两道黑影轰然对撞，镜头贴身环绕不切。\n\n阿岩被能量波掀上螺旋楼梯，凌空翻坠借栏反弹甩出钢链；小满侧闪旋身一腿将其踹离扶手，蓝光合围里阿岩撞柱震颤；补击刹那阿岩眼神骤清，嘶喊：「快走！陈总在楼上——阿岚早不是人了！」\n\n小满僵住，阿岩又被操控扑来，小满咬牙将其震退昏迷，俯身攥紧他的手：「等我。」镜头随他冲向楼梯，能量余波在身后炸开满地玻璃。"},
+  shen3:{title:"神童·满·第3集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"顶层办公室，深蓝西装陈总背身转身递来热可可：「阿岚在隔壁睡觉呢，乖。」小满伸指，蓝电自指尖迸发，整面墙轰然崩塌碎石飞溅，陈总西服被气浪掀得猎猎。\n\n陈总却笑了，推出玻璃舱——里面悬浮的妹妹阿岚覆满机械义体：「你以为我要她？我要的是你，小满。你才是第一具成功的『神童』。」镜头急推小满骤缩的瞳孔，BGM 骤停。\n\n小满垂手，蓝电在掌心重凝，冷声：「那今天，换我当坏人。」一步踏碎地砖，镜头拉远——整层楼在能量中震颤，故事定格，留续集钩子。"},
+  shen4:{title:"神童·满·第4集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"小满逃离总部，在废弃地铁隧道被组织追兵围杀，濒死瞬间神经接口过载，记忆如潮回流。\n\n回溯四岁被「陈叔叔」收养、与阿岩同期在高架上纯真对练的温馨假象，以及阿岚在一次「体检」后被悄无声息带走。\n\n小满睁眼，眼里多出不属于孩子的冷光——他想起陈总左腕那道旧疤，正是「叔叔」的标记。"},
+  shen5:{title:"神童·满·第5集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"小满潜入地下义体工厂，流水线上孩童被逐一改造，阿岚位于最核心舱体，已半机械化、敌我不分。\n\n小满借通风管滑降无声放倒四名守卫，与半机械阿岚钢臂横扫对决，闪避中不断唤她乳名与童年片段，阿岚动作数度迟滞。\n\n小满以儿时共唱童谣贴近，阿岚眼瞳蓝光骤暗又亮，挣扎吐出「哥……跑」，小满带她突围，却知妹妹已非完全之人。"},
+  shen6:{title:"神童·满·第6集",style:"超能力动作爽片·一镜到底：电影级写实、HDR、冷调环境光、夸张物理破坏、金光/尘烟/蓝色电光冲击波特效、极速打斗顿挫卡点招招落实、强打击感、8K；袁和平式动作精度、斯坦尼康贴身跟拍全程不跳切",
+    story:"小满带半唤醒的阿岚逃出工厂，在地下城角落遇袭击，被一名少女领队率领的「微光」反抗小队所救。\n\n少女竟认得「初号」之名，递来一张泛黄的神童名录，暗示组织并非铁板一块、玄渊内部早有裂痕。\n\n小满戒备收下名录，镜头随三人没入地下城霓虹，BGM 起，同盟线拉开。"}
+};
+function plotLoadSample(){
+  const k=$("plot_sample").value;
+  if(!k||!SAMPLE_EPS[k]){ alert("先选一个示例剧本"); return; }
+  plotSaveCurrent();
+  const s=SAMPLE_EPS[k];
+  plotEps.push({title:s.title,story:"",style:"",shots:[]});
+  plotEpIdx=plotEps.length-1;
+  $("plot_story").value=s.story; $("plot_style").value=s.style;
+  document.getElementById("plot_beats").innerHTML="";
+  s.story.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).forEach(b=>plotAddCard(b,""));
+  $("plot_status").textContent="已新建并载入《"+s.title+"》，点「全部 AI 生成」即可出分镜";
+  plotRenderEps(); plotPersist();
+}
+$("plot_loadSample").addEventListener("click",plotLoadSample);
+// 风格预设：点击填好全局风格锚定
+document.querySelectorAll(".plot_stylep").forEach(b=>b.addEventListener("click",()=>{ $("plot_style").value=b.dataset.s; $("plot_status").textContent="已填入风格预设："+b.textContent; }));
+$("plot_splitBtn").addEventListener("click",plotSplit);
+$("plot_addBtn").addEventListener("click",()=>plotAddCard("",""));
+$("plot_genall").addEventListener("click",plotGenAll);
+$("plot_export").addEventListener("click",plotExport);
+$("plot_copy").addEventListener("click",()=>{ navigator.clipboard.writeText($("plot_preview").value).then(()=>alert("已复制分镜脚本")); });
+
+// ---- 规格库：按 14 类规格分类的 chip 插入到 10 要素字段 ----
+const SPEC_FIELDS={subject:"s_subject",action:"s_action",camera:"s_camera",shot:"s_shot",
+  lighting:"s_lighting",style:"s_style",rhythm:"s_rhythm",spatial:"s_spatial",
+  frames:"s_frames",negative:"s_negative"};
+function specInsert(ch){
+  const sel=$("spec_target"); const t=sel.value;
+  const id=(t==="auto")?(SPEC_FIELDS[ch.dataset.f]||"s_action"):t;
+  const ta=$(id); if(!ta) return;
+  const v=ch.dataset.v||ch.textContent.trim();
+  const sep=(id==="s_negative")?"，":"；";
+  ta.value=ta.value.trim()?(ta.value.trim()+sep+v):v;
+  renderSingle();
+  const tip=$("spec_tip");
+  const opt=sel.selectedOptions&&sel.selectedOptions[0];
+  const fname=opt?(opt.textContent.replace(/^\d+\s*/,"")):"字段";
+  tip.textContent="已插入【"+fname+"】："+v.slice(0,20)+(v.length>20?"…":"");
+  clearTimeout(specInsert._t);
+  specInsert._t=setTimeout(()=>{ tip.textContent=""; },2800);
+}
+document.querySelectorAll("#spec .spec-chip").forEach(ch=>ch.addEventListener("click",()=>specInsert(ch)));
+
+// init
+addShot({subject:"阿绾，黑发及腰、左眼角泪痣，墨色交领长袍，正对镜头立于画面中下",
+  style:"国风漫剧、厚涂笔触、电影感、细节丰富、统一美术风格"});
+renderSingle();
+</script>
+</body>
+</html>

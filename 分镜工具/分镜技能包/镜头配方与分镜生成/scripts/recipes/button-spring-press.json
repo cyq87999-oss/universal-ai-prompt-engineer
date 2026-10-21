@@ -1,0 +1,30 @@
+{
+  "shotId": "button-spring-press",
+  "shotName": "Button Spring Press",
+  "purpose": "interaction cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "interaction",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: button-spring-press",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotButton_Spring_Press",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-017"
+}

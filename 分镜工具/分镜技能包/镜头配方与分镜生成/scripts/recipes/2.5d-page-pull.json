@@ -1,0 +1,30 @@
+{
+  "shotId": "2.5d-page-pull",
+  "shotName": "2.5D Page Pull",
+  "purpose": "camera cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "camera",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: 2.5d-page-pull",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "Shot2.5D_Page_Pull",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-001"
+}

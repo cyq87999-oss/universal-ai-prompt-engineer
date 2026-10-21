@@ -1,0 +1,30 @@
+{
+  "shotId": "cursor-flyover",
+  "shotName": "Cursor Flyover",
+  "purpose": "interaction cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "interaction",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: cursor-flyover",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotCursor_Flyover",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-016"
+}

@@ -1,0 +1,30 @@
+{
+  "shotId": "ink-title-fade",
+  "shotName": "Ink Title Fade",
+  "purpose": "typography cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "typography",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: ink-title-fade",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotInk_Title_Fade",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-015"
+}

@@ -1,0 +1,30 @@
+{
+  "shotId": "card-flip-reveal",
+  "shotName": "Card Flip Reveal",
+  "purpose": "ui-entrance cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "ui-entrance",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: card-flip-reveal",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotCard_Flip_Reveal",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-011"
+}

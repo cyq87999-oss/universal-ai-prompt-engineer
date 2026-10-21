@@ -1,0 +1,30 @@
+{
+  "shotId": "flash-cut",
+  "shotName": "Flash Cut",
+  "purpose": "transitions cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "transitions",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: flash-cut",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotFlash_Cut",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-007"
+}

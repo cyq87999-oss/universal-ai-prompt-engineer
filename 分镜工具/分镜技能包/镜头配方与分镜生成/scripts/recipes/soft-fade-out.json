@@ -1,0 +1,30 @@
+{
+  "shotId": "soft-fade-out",
+  "shotName": "Soft Fade Out",
+  "purpose": "outro cinematic motion for product screenshot",
+  "energy": "medium",
+  "tags": [
+    "outro",
+    "remotion"
+  ],
+  "description": "Video Shotcraft original recipe: soft-fade-out",
+  "durationRange": [
+    1.2,
+    3.2
+  ],
+  "materialAccept": [
+    "image",
+    "screenshot",
+    "photo"
+  ],
+  "materialReject": [
+    "long-text-slide"
+  ],
+  "remotionComponent": "ShotSoft_Fade_Out",
+  "defaultParams": {
+    "easing": "easeInOutQuad"
+  },
+  "implementationNotes": "Reference Remotion TSX demo from video-shotcraft",
+  "pitfalls": "Avoid too many layered assets, may cause jitter",
+  "previewRef": "preview-022"
+}
